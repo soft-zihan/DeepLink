@@ -27,7 +27,13 @@
 
 ## 如何构建
 
-在Android Studio中构建并运行应用
+1.  克隆仓库到本地。
+2.  在 Android Studio 中打开项目。
+3.  确保已配置 `local.properties` 文件，其中包含 SDK 路径。
+4.  如果需要构建发行版，请确保 `keystore.properties` 文件已正确配置，并且 `my-release-key.jks` 文件位于项目根目录。
+5.  通过 Android Studio 的构建菜单构建项目，或者在项目根目录运行以下命令：
+    *   调试版本: `./gradlew assembleDebug`
+    *   发行版本: `./gradlew assembleRelease`
 
 ## 添加新的搜索链接
 
@@ -40,3 +46,8 @@
 1. 在主界面的搜索框中输入要查询的内容
 2. 确保已选中想要搜索的平台（通过勾选框）
 3. 点击搜索按钮，应用将同时在所有已选平台中打开相应的搜索结果
+
+## 许可证
+
+该项目根据 [MIT 许可证](LICENSE) 进行许可。
+
