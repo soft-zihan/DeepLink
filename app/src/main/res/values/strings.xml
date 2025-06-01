@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">深链搜索</string>
+    <string name="search_hint">请输入搜索内容...</string>
+    <string name="search_button">搜索</string>
+    <string name="add_url">添加链接</string>
+    <string name="url_name">名称</string>
+    <string name="url_pattern">链接地址 (使用 %s 表示搜索内容)</string>
+    <string name="save">保存</string>
+    <string name="cancel">取消</string>
+    <string name="delete">删除</string>
+</resources>

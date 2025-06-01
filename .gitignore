@@ -1,0 +1,38 @@
+# Android Studio / IntelliJ
+*.iml
+.idea/
+.gradle/
+build/
+local.properties
+captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Keystore files
+keystore.properties
+*.jks
+my-release-key.jks
+
+# Google services
+google-services.json
+
+# Crashlytics
+com_crashlytics_export_strings.xml
+
+# Proguard
+proguard/
+
+# Lint
+lint/reports/
+
+# Firebase
+firebase.json
+.firebase/
+
+# Misc
+.DS_Store
+Thumbs.db
+
