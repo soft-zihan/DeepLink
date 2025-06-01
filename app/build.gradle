@@ -23,7 +23,7 @@ android {
             def keystoreProperties = new Properties()
             if (keystorePropertiesFile.exists()) {
                 keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-                storeFile file(keystoreProperties['storeFile'])
+                storeFile rootProject.file(keystoreProperties['storeFile'])
                 storePassword keystoreProperties['storePassword']
                 keyAlias keystoreProperties['keyAlias']
                 keyPassword keystoreProperties['keyPassword']
@@ -37,6 +37,9 @@ android {
     }
     kotlinOptions {
         jvmTarget = '17'
+    }
+    kotlin {
+        jvmToolchain(17)
     }
     buildFeatures {
         viewBinding true
