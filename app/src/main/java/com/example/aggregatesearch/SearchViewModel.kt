@@ -116,6 +116,14 @@ class SearchViewModel(private val repository: SearchUrlRepository) : ViewModel()
         repository.updateAllUrls(urlsToUpdate.distinctBy { it.id })
     }
 
+    fun getUrlsByGroupId(groupId: Long): List<SearchUrl> {
+        return allUrls.value.filter { it.groupId == groupId }.sortedBy { it.orderIndex }
+    }
+
+    fun updateUrls(urls: List<SearchUrl>) = viewModelScope.launch {
+        repository.updateAllUrls(urls)
+    }
+
     fun restoreFromBackup(groups: List<UrlGroup>, urls: List<SearchUrl>) = viewModelScope.launch {
         repository.deleteAllGroups()
         repository.deleteAllUrls()

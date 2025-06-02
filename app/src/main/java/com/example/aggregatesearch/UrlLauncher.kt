@@ -20,7 +20,13 @@ object UrlLauncher {
 
             try {
                 val formattedUrl = if (url.urlPattern.contains("%s")) {
-                    url.urlPattern.replace("%s", Uri.encode(searchQuery))
+                    if (searchQuery.isEmpty()) {
+                        // 当搜索查询为空时，直接删除%s
+                        url.urlPattern.replace("%s", "")
+                    } else {
+                        // 有搜索查询时，正常替换
+                        url.urlPattern.replace("%s", Uri.encode(searchQuery))
+                    }
                 } else {
                     url.urlPattern
                 }

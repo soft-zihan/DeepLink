@@ -1,6 +1,5 @@
 package com.example.aggregatesearch
 
-import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -28,7 +27,6 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
-import java.io.OutputStream
 
 class MainActivity : AppCompatActivity() {
 
@@ -190,15 +188,8 @@ class MainActivity : AppCompatActivity() {
             onItemClicked = { item ->
                 if (item is SearchUrl) {
                     val searchQuery = binding.editTextSearch.text.toString().trim()
-                    if (searchQuery.isNotEmpty()) {
-                        UrlLauncher.launchSearchUrls(this, searchQuery, listOf(item))
-                    } else {
-                        if (!item.urlPattern.contains("%s")) {
-                            UrlLauncher.launchSearchUrls(this, "", listOf(item))
-                        } else {
-                            Toast.makeText(this, "请输入搜索内容或确保链接不含%s", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+                    // 无论是否输入关键词，都尝试打开链接
+                    UrlLauncher.launchSearchUrls(this, searchQuery, listOf(item))
                 }
             },
             onDeleteItemClicked = { item ->
@@ -216,6 +207,10 @@ class MainActivity : AppCompatActivity() {
             },
             onItemMoveRequested = { fromPosition, toPosition ->
                 handleItemMove(fromPosition, toPosition)
+            },
+            getUrlsForGroup = { groupId ->
+                // 使用 ViewModel 获取分组的所有 URL，无论是否展开
+                searchViewModel.getUrlsByGroupId(groupId)
             }
         )
         binding.recyclerViewUrls.adapter = groupedAdapter
@@ -224,6 +219,9 @@ class MainActivity : AppCompatActivity() {
             ItemTouchHelper.UP or ItemTouchHelper.DOWN,
              0
         ) {
+            private var dragFrom: Int = -1
+            private var dragTo: Int = -1
+            
             override fun onMove(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder,
@@ -231,11 +229,35 @@ class MainActivity : AppCompatActivity() {
             ): Boolean {
                 val fromPosition = viewHolder.bindingAdapterPosition
                 val toPosition = target.bindingAdapterPosition
+                
                 if (fromPosition != RecyclerView.NO_POSITION && toPosition != RecyclerView.NO_POSITION) {
+                    // 追踪开始的拖动位置
+                    if (dragFrom == -1) {
+                        dragFrom = fromPosition
+                    }
+                    // 更新当前拖动位置
+                    dragTo = toPosition
+                    
+                    // 移动视图显示
                     groupedAdapter.notifyItemMoved(fromPosition, toPosition)
-                    handleItemMove(fromPosition, toPosition)
+                    return true
                 }
-                return true
+                return false
+            }
+
+            // 拖放完成时处理实际数据更新
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                
+                // 如果我们有有效的拖动操作
+                if (dragFrom != -1 && dragTo != -1 && dragFrom != dragTo) {
+                    // 执行实际的数据移动
+                    handleItemMove(dragFrom, dragTo)
+                }
+                
+                // 重置拖放状态
+                dragFrom = -1
+                dragTo = -1
             }
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
@@ -258,11 +280,15 @@ class MainActivity : AppCompatActivity() {
                 val itemTo = groupedAdapter.getItemAt(toPosition)
 
                 return when {
+                    // 组可以移动到组
                     itemFrom is UrlGroup && itemTo is UrlGroup -> true
+                    // 链接可以在同一组内移动
                     itemFrom is SearchUrl && itemTo is SearchUrl -> {
                         itemFrom.groupId == itemTo.groupId
                     }
-                    itemFrom is SearchUrl && (itemTo is UrlGroup || itemTo is SearchUrl) -> true
+                    // 链接可以移动到组
+                    itemFrom is SearchUrl && itemTo is UrlGroup -> true
+                    // 其他情况不允许移动
                     else -> false
                 }
             }
@@ -282,25 +308,38 @@ class MainActivity : AppCompatActivity() {
                 mutableGroups.add(groupedAdapter.getGroupOriginalIndex(itemTo), movedGroup)
                 searchViewModel.updateGroupsOrder(mutableGroups.mapIndexed { index, group -> group.copy(orderIndex = index) })
             }
-            itemFrom is SearchUrl -> {
-                val fromUrl = itemFrom
-                var targetGroupId = -1L
-                var targetOrderInGroup = -1
+            itemFrom is SearchUrl && itemTo is SearchUrl -> {
+                // 判断是否在同一分组内
+                if (itemFrom.groupId == itemTo.groupId) {
+                    // 获取同一分组内的所有URL
+                    val groupUrls = searchViewModel.getUrlsByGroupId(itemFrom.groupId)
+                    val itemFromIndex = groupUrls.indexOfFirst { it.id == itemFrom.id }
+                    val itemToIndex = groupUrls.indexOfFirst { it.id == itemTo.id }
 
-                if (itemTo is UrlGroup) {
-                    targetGroupId = itemTo.id
-                    targetOrderInGroup = 0
-                } else if (itemTo is SearchUrl) {
-                    targetGroupId = itemTo.groupId
-                    targetOrderInGroup = itemTo.orderIndex
-                }
+                    if (itemFromIndex != -1 && itemToIndex != -1) {
+                        // 重新排序
+                        val reorderedUrls = groupUrls.toMutableList()
+                        val movedItem = reorderedUrls.removeAt(itemFromIndex)
+                        reorderedUrls.add(itemToIndex, movedItem)
 
-                if (targetGroupId != -1L) {
-                    searchViewModel.moveUrlToGroup(fromUrl, targetGroupId, targetOrderInGroup)
+                        // 更新顺序索引
+                        val updatedUrls = reorderedUrls.mapIndexed { index, url ->
+                            url.copy(orderIndex = index)
+                        }
+                        searchViewModel.updateUrls(updatedUrls)
+                    }
+                } else {
+                    // 跨分组移动
+                    searchViewModel.moveUrlToGroup(itemFrom, itemTo.groupId, itemTo.orderIndex)
                 }
+            }
+            itemFrom is SearchUrl && itemTo is UrlGroup -> {
+                // 移动到分组顶部
+                searchViewModel.moveUrlToGroup(itemFrom, itemTo.id, 0)
             }
         }
     }
+
     private fun showAddUrlDialog() {
         val dialogBinding = DialogAddUrlBinding.inflate(LayoutInflater.from(this))
         val currentGroups = searchViewModel.allGroups.value

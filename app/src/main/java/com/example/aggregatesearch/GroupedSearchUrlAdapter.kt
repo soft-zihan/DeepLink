@@ -19,7 +19,8 @@ class GroupedSearchUrlAdapter(
     private val onUrlCheckChanged: (SearchUrl, Boolean) -> Unit,
     private val onGroupCheckChanged: (UrlGroup, Boolean) -> Unit,
     private val onGroupExpandCollapse: (UrlGroup, Boolean) -> Unit,
-    private val onItemMoveRequested: (fromPosition: Int, toPosition: Int) -> Unit
+    private val onItemMoveRequested: (fromPosition: Int, toPosition: Int) -> Unit,
+    private val getUrlsForGroup: (groupId: Long) -> List<SearchUrl> // 添加一个新的函数参数用于获取组内所有URL
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
@@ -87,8 +88,9 @@ class GroupedSearchUrlAdapter(
             textViewGroupName.text = group.name
             checkboxGroupSelect.setOnCheckedChangeListener(null)
 
-            val allChildrenOfThisGroup = items.filterIsInstance<SearchUrl>().filter { it.groupId == group.id }
-            val isGroupSelected = allChildrenOfThisGroup.isNotEmpty() && allChildrenOfThisGroup.all { it.isEnabled }
+            // 改为从所有URL列表中查找该分组下的所有URL，而不是仅检查当前显示的items列表
+            val allUrlsInGroup = getUrlsForGroup(group.id)
+            val isGroupSelected = allUrlsInGroup.isNotEmpty() && allUrlsInGroup.all { it.isEnabled }
             checkboxGroupSelect.isChecked = isGroupSelected
 
             checkboxGroupSelect.setOnCheckedChangeListener { _, isChecked ->
