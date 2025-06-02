@@ -1,3 +1,5 @@
+# 程序功能介绍
+
 这是一个可以调用app内搜索的安卓聚合搜索应用，允许用户通过单次输入同时打开多个搜索链接。
 
 ## 使用方法
@@ -43,7 +45,70 @@
     *   调试版本: `./gradlew assembleDebug`
     *   发行版本: `./gradlew assembleRelease`
 
-## 许可证
+# 项目文件介绍
 
-该项目根据 [MIT 许可证](LICENSE) 进行许可。
+## 技术栈
 
+- **编程语言**：Kotlin
+- **开发环境**：Android Studio
+- **构建工具**：Gradle
+- **SDK版本**：
+    - 编译 SDK：34
+    - 最低 SDK：24
+    - 目标 SDK：34
+- **架构组件**：
+    - AndroidX
+    - ViewModel & LiveData
+    - Room 数据库 (用于持久化存储搜索链接)
+- **UI组件**：
+    - ViewBinding
+    - RecyclerView
+    - ConstraintLayout
+    - Material Design
+
+## 项目结构
+
+```
+app/
+├── src/
+│   └── main/
+│       ├── AndroidManifest.xml
+│       ├── java/
+│       │   └── com/
+│       │       └── example/
+│       │           └── aggregatesearch/
+│       │               ├── data/                      # 数据层
+│       │               │   ├── Migrations.kt          # 数据库迁移
+│       │               │   ├── SearchUrl.kt           # 搜索链接实体
+│       │               │   ├── SearchUrlDao.kt        # 数据访问对象
+│       │               │   ├── SearchUrlDatabase.kt   # Room 数据库
+│       │               │   ├── SearchUrlRepository.kt # 仓库层
+│       │               │   └── UrlGroup.kt            # URL分组
+│       │               ├── GroupedSearchUrlAdapter.kt # 分组的URL适配器
+│       │               ├── MainActivity.kt            # 主活动
+│       │               ├── SearchApplication.kt       # 应用类
+│       │               ├── SearchUrlAdapter.kt        # URL适配器
+│       │               ├── SearchViewModel.kt         # ViewModel
+│       │               └── UrlLauncher.kt             # URL启动器
+│       └── res/                                       # 资源文件
+```
+
+## 核心组件解析
+
+### 数据层 (data/)
+- **SearchUrl.kt**：定义搜索URL的数据结构
+- **SearchUrlDao.kt**：定义数据库操作接口
+- **SearchUrlDatabase.kt**：Room数据库的设置和实例化
+- **SearchUrlRepository.kt**：作为数据源和ViewModel之间的中介
+- **Migrations.kt**：处理数据库版本迁移
+- **UrlGroup.kt**：管理URL分组功能
+
+### UI层
+- **MainActivity.kt**：主界面，包含搜索框和链接列表
+- **SearchViewModel.kt**：管理UI相关的数据和业务逻辑
+- **SearchUrlAdapter.kt**：为RecyclerView提供数据绑定
+- **GroupedSearchUrlAdapter.kt**：处理分组显示的URL适配器
+
+### 工具类
+- **UrlLauncher.kt**：处理URL的打开和跳转逻辑
+- **SearchApplication.kt**：应用级配置和依赖注入
