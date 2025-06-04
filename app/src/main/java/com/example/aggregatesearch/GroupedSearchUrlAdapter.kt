@@ -16,6 +16,7 @@ import com.example.aggregatesearch.data.UrlGroup
 class GroupedSearchUrlAdapter(
     private val onItemClicked: (Any) -> Unit,
     private val onDeleteItemClicked: (Any) -> Unit,
+    private val onEditItemClicked: (Any) -> Unit, // 新增编辑项目的回调
     private val onUrlCheckChanged: (SearchUrl, Boolean) -> Unit,
     private val onGroupCheckChanged: (UrlGroup, Boolean) -> Unit,
     private val onGroupExpandCollapse: (UrlGroup, Boolean) -> Unit,
@@ -82,6 +83,8 @@ class GroupedSearchUrlAdapter(
         private val checkboxGroupSelect: CheckBox = itemView.findViewById(R.id.checkboxGroupSelect)
         private val imageViewExpandCollapse: ImageView = itemView.findViewById(R.id.imageViewExpandCollapse)
         private val dragHandle: ImageView = itemView.findViewById(R.id.drag_handle_group)
+        private val buttonDeleteGroup: ImageButton = itemView.findViewById(R.id.buttonDeleteGroup)
+        private val buttonEditGroup: ImageButton = itemView.findViewById(R.id.buttonEditGroup)
 
         @SuppressLint("ClickableViewAccessibility")
         fun bind(group: UrlGroup) {
@@ -103,11 +106,24 @@ class GroupedSearchUrlAdapter(
             imageViewExpandCollapse.setOnClickListener {
                 onGroupExpandCollapse(group, !group.isExpanded)
             }
+
+            // 设置整个项目的点击事件，用于触发分组内所有链接
             itemView.setOnClickListener { onItemClicked(group) }
-            dragHandle.setOnTouchListener { _, event ->
-                if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-                }
-                false
+
+            // 长按拖动功能，使整个分组项长按可拖动
+            itemView.setOnLongClickListener {
+                itemView.parent?.requestDisallowInterceptTouchEvent(true)
+                true
+            }
+
+            // 为删除按钮设置点击事件
+            buttonDeleteGroup.setOnClickListener {
+                onDeleteItemClicked(group)
+            }
+
+            // 为编辑按钮设置点击事件
+            buttonEditGroup.setOnClickListener {
+                onEditItemClicked(group)
             }
         }
     }
@@ -116,6 +132,7 @@ class GroupedSearchUrlAdapter(
         private val textViewUrlName: TextView = itemView.findViewById(R.id.textViewUrlName)
         private val textViewUrlPattern: TextView = itemView.findViewById(R.id.textViewUrlPattern)
         private val buttonDeleteUrl: ImageButton = itemView.findViewById(R.id.buttonDeleteUrl)
+        private val buttonEditUrl: ImageButton = itemView.findViewById(R.id.buttonEditUrl)
         private val checkboxUrlEnabled: CheckBox = itemView.findViewById(R.id.checkboxUrlEnabled)
         private val dragHandle: ImageView = itemView.findViewById(R.id.drag_handle_url)
 
@@ -129,11 +146,13 @@ class GroupedSearchUrlAdapter(
                 onUrlCheckChanged(searchUrl, isChecked)
             }
             buttonDeleteUrl.setOnClickListener { onDeleteItemClicked(searchUrl) }
+            buttonEditUrl.setOnClickListener { onEditItemClicked(searchUrl) }
             itemView.setOnClickListener { onItemClicked(searchUrl) }
-            dragHandle.setOnTouchListener { _, event ->
-                if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-                }
-                false
+
+            // 长按拖动功能，让整个链接项长按可拖动
+            itemView.setOnLongClickListener {
+                itemView.parent?.requestDisallowInterceptTouchEvent(true)
+                true
             }
         }
     }

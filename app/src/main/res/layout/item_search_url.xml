@@ -37,14 +37,14 @@
             android:layout_marginTop="2dp" />
     </LinearLayout>
 
-    <ImageView
-        android:id="@+id/drag_handle_url"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_gravity="center_vertical"
+    <ImageButton
+        android:id="@+id/buttonEditUrl"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_menu_edit"
         android:layout_marginStart="8dp"
-        app:tint="#555555"
-        android:src="@android:drawable/ic_menu_sort_by_size" />
+        app:tint="#555555"/>
 
     <ImageButton
         android:id="@+id/buttonDeleteUrl"
@@ -53,6 +53,13 @@
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@android:drawable/ic_menu_delete"
         android:contentDescription="@string/delete"
-        android:layout_marginStart="8dp"/>
+        android:layout_marginStart="8dp"
+        app:tint="#555555"/>
 
+    <!-- 隐藏的拖动处理器，用户可以长按整个项目来拖动 -->
+    <ImageView
+        android:id="@+id/drag_handle_url"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
 </LinearLayout>

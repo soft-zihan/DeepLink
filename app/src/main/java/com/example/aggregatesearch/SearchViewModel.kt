@@ -136,6 +136,10 @@ class SearchViewModel(private val repository: SearchUrlRepository) : ViewModel()
             repository.insertUrlWithId(url)
         }
     }
+
+    fun updateGroup(group: UrlGroup) = viewModelScope.launch {
+        repository.updateGroup(group)
+    }
 }
 
 class SearchViewModelFactory(private val repository: SearchUrlRepository) : ViewModelProvider.Factory {

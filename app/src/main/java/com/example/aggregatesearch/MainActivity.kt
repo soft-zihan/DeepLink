@@ -190,11 +190,25 @@ class MainActivity : AppCompatActivity() {
                     val searchQuery = binding.editTextSearch.text.toString().trim()
                     // 无论是否输入关键词，都尝试打开链接
                     UrlLauncher.launchSearchUrls(this, searchQuery, listOf(item))
+                } else if (item is UrlGroup) {
+                    // 当点击分组时，获取该分组内所有启用的链接并打开
+                    val searchQuery = binding.editTextSearch.text.toString().trim()
+                    val enabledUrlsInGroup = searchViewModel.getUrlsByGroupId(item.id).filter { it.isEnabled }
+                    if (enabledUrlsInGroup.isNotEmpty()) {
+                        UrlLauncher.launchSearchUrls(this, searchQuery, enabledUrlsInGroup)
+                    } else {
+                        Toast.makeText(this, "该分组内没有启用的链接", Toast.LENGTH_SHORT).show()
+                    }
                 }
             },
             onDeleteItemClicked = { item ->
                 if (item is SearchUrl) showDeleteConfirmationDialog(item)
                 else if (item is UrlGroup) showDeleteGroupDialog(item)
+            },
+            onEditItemClicked = { item ->
+                // 新增编辑功能
+                if (item is SearchUrl) showEditUrlDialog(item)
+                else if (item is UrlGroup) showEditGroupDialog(item)
             },
             onUrlCheckChanged = { searchUrl, isChecked ->
                 searchViewModel.updateUrl(searchUrl.copy(isEnabled = isChecked))
@@ -421,6 +435,67 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    private fun showEditUrlDialog(searchUrl: SearchUrl) {
+        val dialogBinding = com.example.aggregatesearch.databinding.DialogEditUrlBinding.inflate(LayoutInflater.from(this))
+
+        // 预填充现有值
+        dialogBinding.editTextUrlName.setText(searchUrl.name)
+        dialogBinding.editTextUrlPattern.setText(searchUrl.urlPattern)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("编辑搜索链接")
+            .setView(dialogBinding.root)
+            .setPositiveButton("保存", null)
+            .setNegativeButton("取消", null)
+            .create()
+
+        dialog.show()
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val name = dialogBinding.editTextUrlName.text.toString().trim()
+            val pattern = dialogBinding.editTextUrlPattern.text.toString().trim()
+
+            if (name.isNotEmpty() && pattern.isNotEmpty()) {
+                val updatedUrl = searchUrl.copy(
+                    name = name,
+                    urlPattern = pattern
+                )
+                searchViewModel.updateUrl(updatedUrl)
+                dialog.dismiss()
+            } else {
+                Toast.makeText(this, "名称和链接不能为空", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun showEditGroupDialog(group: UrlGroup) {
+        val dialogBinding = com.example.aggregatesearch.databinding.DialogEditGroupBinding.inflate(LayoutInflater.from(this))
+
+        // 预填充现有值
+        dialogBinding.editTextGroupName.setText(group.name)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("编辑分组")
+            .setView(dialogBinding.root)
+            .setPositiveButton("保存", null)
+            .setNegativeButton("取消", null)
+            .create()
+
+        dialog.show()
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val name = dialogBinding.editTextGroupName.text.toString().trim()
+
+            if (name.isNotEmpty()) {
+                val updatedGroup = group.copy(name = name)
+                searchViewModel.updateGroup(updatedGroup)
+                dialog.dismiss()
+            } else {
+                Toast.makeText(this, "分组名称不能为空", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun setupSearchFunction() {
