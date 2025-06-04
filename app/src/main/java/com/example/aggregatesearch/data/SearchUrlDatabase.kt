@@ -82,18 +82,18 @@ abstract class SearchUrlDatabase : RoomDatabase() {
                                 searchUrlDao.insert(coolUrl)
 
 
-                                // 创建购物APP分组
+                                // 创建购物APP分组（淘宝暂未成功）
                                 val shoppingGroup = UrlGroup(name = "购物", orderIndex = 3)
                                 val shoppingGroupId = searchUrlDao.insertGroup(shoppingGroup)
 
                                 val pddUrl = SearchUrl(name = "拼多多", urlPattern = "pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=%s", groupId = shoppingGroupId, orderIndex = 0, isEnabled = true, packageName = "")
                                 val jdUrl = SearchUrl(name = "京东", urlPattern = "openApp.jdMobile://virtual?params={\"category\":\"jump\",\"des\":\"search\",\"keyWord\":\"%s\"}", groupId = shoppingGroupId, orderIndex = 1, isEnabled = true, packageName = "")
-                                val taobaoUrl = SearchUrl(name = "淘宝", urlPattern = "尚未成功获得", groupId = shoppingGroupId, orderIndex = 2, isEnabled = true, packageName = "")
+                               /* val taobaoUrl = SearchUrl(name = "淘宝", urlPattern = "尚未成功获得", groupId = shoppingGroupId, orderIndex = 2, isEnabled = true, packageName = "")*/
                                 val xianyuUrl = SearchUrl(name = "闲鱼", urlPattern = "fleamarket://searchitems?keyword=%s&searchType=0", groupId = shoppingGroupId, orderIndex = 3, isEnabled = true, packageName = "")
 
                                 searchUrlDao.insert(pddUrl)
                                 searchUrlDao.insert(jdUrl)
-                                searchUrlDao.insert(taobaoUrl)
+                           /*     searchUrlDao.insert(taobaoUrl)*/
                                 searchUrlDao.insert(xianyuUrl)
 
 
