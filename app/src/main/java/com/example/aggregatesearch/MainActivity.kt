@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -20,6 +21,8 @@ import com.example.aggregatesearch.data.UrlGroup
 import com.example.aggregatesearch.databinding.ActivityMainBinding
 import com.example.aggregatesearch.databinding.DialogAddGroupBinding
 import com.example.aggregatesearch.databinding.DialogAddUrlBinding
+import com.example.aggregatesearch.dialogs.AppSelectionDialogFragment
+import com.example.aggregatesearch.utils.AppPackageManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -98,7 +101,7 @@ class MainActivity : AppCompatActivity() {
             contentResolver.openInputStream(uri)?.use { inputStream ->
                 val jsonString = readTextFromStream(inputStream)
                 restoreFromBackup(jsonString)
-                Toast.makeText(this, "恢复成功，请重启应用", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "恢复成功", Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             Toast.makeText(this, "恢复失败: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -129,6 +132,8 @@ class MainActivity : AppCompatActivity() {
                 put("isEnabled", url.isEnabled)
                 put("orderIndex", url.orderIndex)
                 put("groupId", url.groupId)
+                // 添加包名到备份数据中
+                put("packageName", url.packageName)
             }
             urlsArray.put(urlObject)
         }
@@ -165,7 +170,12 @@ class MainActivity : AppCompatActivity() {
                     urlPattern = urlObject.getString("urlPattern"),
                     isEnabled = urlObject.getBoolean("isEnabled"),
                     orderIndex = urlObject.getInt("orderIndex"),
-                    groupId = urlObject.getLong("groupId")
+                    groupId = urlObject.getLong("groupId"),
+                    // 尝试从备份数据中恢复包名，如果不存在则使用空字符串
+                    packageName = if (urlObject.has("packageName"))
+                        urlObject.getString("packageName")
+                    else
+                        ""
                 )
             )
         }
@@ -191,7 +201,7 @@ class MainActivity : AppCompatActivity() {
                     // 无论是否输入关键词，都尝试打开链接
                     UrlLauncher.launchSearchUrls(this, searchQuery, listOf(item))
                 } else if (item is UrlGroup) {
-                    // 当点击分组时，获取该分组内所有启用的链接并打开
+                    // 当点击分组时，获取该分组内所有��用的链接并打开
                     val searchQuery = binding.editTextSearch.text.toString().trim()
                     val enabledUrlsInGroup = searchViewModel.getUrlsByGroupId(item.id).filter { it.isEnabled }
                     if (enabledUrlsInGroup.isNotEmpty()) {
@@ -369,6 +379,24 @@ class MainActivity : AppCompatActivity() {
         dialogBinding.spinnerGroup.adapter = adapter
         dialogBinding.spinnerGroup.setSelection(0)
 
+        // 设置选择应用按钮点击事件
+        var selectedPackageName = ""
+        dialogBinding.btnSelectApp.setOnClickListener {
+            val dialog = AppSelectionDialogFragment.newInstance()
+            dialog.setOnAppSelectedListener { packageName: String, appName: String ->
+                selectedPackageName = packageName
+                if (packageName.isNotEmpty()) {
+                    dialogBinding.editTextPackageName.setText(packageName as CharSequence)
+                    dialogBinding.textViewSelectedAppName.text = "已选择: $appName"
+                    dialogBinding.textViewSelectedAppName.visibility = View.VISIBLE
+                } else {
+                    dialogBinding.editTextPackageName.setText("" as CharSequence)
+                    dialogBinding.textViewSelectedAppName.visibility = View.GONE
+                }
+            }
+            dialog.show(supportFragmentManager, AppSelectionDialogFragment.TAG)
+        }
+
         val dialog = AlertDialog.Builder(this)
             .setTitle("添加搜索链接")
             .setView(dialogBinding.root)
@@ -388,7 +416,8 @@ class MainActivity : AppCompatActivity() {
                 val searchUrl = SearchUrl(
                     name = name,
                     urlPattern = pattern,
-                    groupId = selectedGroup.id
+                    groupId = selectedGroup.id,
+                    packageName = selectedPackageName
                 )
                 searchViewModel.insert(searchUrl)
                 dialog.dismiss()
@@ -441,8 +470,39 @@ class MainActivity : AppCompatActivity() {
         val dialogBinding = com.example.aggregatesearch.databinding.DialogEditUrlBinding.inflate(LayoutInflater.from(this))
 
         // 预填充现有值
-        dialogBinding.editTextUrlName.setText(searchUrl.name)
-        dialogBinding.editTextUrlPattern.setText(searchUrl.urlPattern)
+        dialogBinding.editTextUrlName.setText(searchUrl.name as CharSequence)
+        dialogBinding.editTextUrlPattern.setText(searchUrl.urlPattern as CharSequence)
+
+        // 预填充包名，如果存在
+        var selectedPackageName = searchUrl.packageName
+        if (selectedPackageName.isNotEmpty()) {
+            dialogBinding.editTextPackageName.setText(selectedPackageName as CharSequence)
+
+            // 获取应用名称
+            val appPackageManager = AppPackageManager(this)
+            val appName = appPackageManager.getAppNameByPackage(selectedPackageName)
+            if (appName != null) {
+                dialogBinding.textViewSelectedAppName.text = "已选择: $appName"
+                dialogBinding.textViewSelectedAppName.visibility = View.VISIBLE
+            }
+        }
+
+        // 设置选择应用按钮点击事件
+        dialogBinding.btnSelectApp.setOnClickListener {
+            val dialog = AppSelectionDialogFragment.newInstance()
+            dialog.setOnAppSelectedListener { packageName: String, appName: String ->
+                selectedPackageName = packageName
+                if (packageName.isNotEmpty()) {
+                    dialogBinding.editTextPackageName.setText(packageName as CharSequence)
+                    dialogBinding.textViewSelectedAppName.text = "已选择: $appName"
+                    dialogBinding.textViewSelectedAppName.visibility = View.VISIBLE
+                } else {
+                    dialogBinding.editTextPackageName.setText("" as CharSequence)
+                    dialogBinding.textViewSelectedAppName.visibility = View.GONE
+                }
+            }
+            dialog.show(supportFragmentManager, AppSelectionDialogFragment.TAG)
+        }
 
         val dialog = AlertDialog.Builder(this)
             .setTitle("编辑搜索链接")
@@ -460,7 +520,8 @@ class MainActivity : AppCompatActivity() {
             if (name.isNotEmpty() && pattern.isNotEmpty()) {
                 val updatedUrl = searchUrl.copy(
                     name = name,
-                    urlPattern = pattern
+                    urlPattern = pattern,
+                    packageName = selectedPackageName
                 )
                 searchViewModel.updateUrl(updatedUrl)
                 dialog.dismiss()

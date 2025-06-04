@@ -41,6 +41,51 @@
         android:id="@+id/spinnerGroup"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"/>
+
+    <!-- 添加应用包名选择功能 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="选择打开应用（可选）"
         android:layout_marginBottom="8dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editTextPackageName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="应用包名"
+                android:inputType="text"
+                android:focusable="false"
+                android:clickable="false"/>
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <Button
+            android:id="@+id/btnSelectApp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="选择应用"
+            style="@style/Widget.MaterialComponents.Button.TextButton"/>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textViewSelectedAppName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:text=""
+        android:visibility="gone"/>
 
 </LinearLayout>

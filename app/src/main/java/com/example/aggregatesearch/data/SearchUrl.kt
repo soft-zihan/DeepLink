@@ -22,5 +22,6 @@ data class SearchUrl(
     val urlPattern: String,
     var isEnabled: Boolean = true,
     var orderIndex: Int = 0,
-    @ColumnInfo(name = "groupId") var groupId: Long // Foreign key for UrlGroup
+    @ColumnInfo(name = "groupId") var groupId: Long, // Foreign key for UrlGroup
+    var packageName: String = "" // 新增字段，用于存储对应的应用包名，默认为空
 )
