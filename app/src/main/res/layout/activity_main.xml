@@ -18,7 +18,16 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <EditText
+            <ImageButton
+                android:id="@+id/buttonSelectAll"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:padding="8dp"
+                android:scaleType="fitCenter"
+                android:background="@android:color/transparent"
+                android:src="@android:drawable/checkbox_off_background" />
+
+            <AutoCompleteTextView
                 android:id="@+id/editTextSearch"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -27,37 +36,33 @@
                 android:inputType="text"
                 android:imeOptions="actionSearch"
                 android:padding="12dp"
-                android:background="@drawable/search_background"/>
+                android:background="@drawable/search_background"
+                android:textColor="?android:attr/textColorPrimary"/>
 
-            <Button
+            <ImageButton
                 android:id="@+id/buttonSearch"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
                 android:layout_marginStart="8dp"
-                android:text="@string/search_button" />
+                android:background="@android:color/transparent"
+                android:src="@android:drawable/ic_menu_search"
+                android:contentDescription="搜索" />
         </LinearLayout>
 
-        <LinearLayout
+        <!-- 常搜关键词列表 -->
+        <HorizontalScrollView
+            android:id="@+id/scrollViewPinned"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="end"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp">
+            android:visibility="gone"
+            android:layout_marginTop="8dp">
 
-            <Button
-                android:id="@+id/buttonAddGroup"
+            <LinearLayout
+                android:id="@+id/containerPinned"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="添加分组"
-                android:layout_marginEnd="8dp" />
-
-            <Button
-                android:id="@+id/buttonAddUrl"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/add_url" />
-        </LinearLayout>
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewUrls"

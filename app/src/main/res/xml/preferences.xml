@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <SwitchPreferenceCompat
+        android:key="pref_history"
+        android:title="搜索历史记录"
+        android:summary="开启或关闭搜索历史" />
+
+    <Preference
+        android:key="pref_backup"
+        android:title="备份"
+        android:summary="备份数据到文件" />
+
+    <Preference
+        android:key="pref_restore"
+        android:title="恢复"
+        android:summary="从备份文件恢复" />
+
+    <com.example.aggregatesearch.preferences.ToolbarColorPreference
+        android:key="pref_toolbar_color_inline"
+        android:title="顶栏颜色" />
+
+    <com.example.aggregatesearch.preferences.ThemeTogglePreference
+        android:key="pref_theme_toggle"
+        android:title="主题切换" />
+
+    <Preference
+        android:key="pref_wallpaper_light"
+        android:title="壁纸 (浅色主题)"
+        android:summary="选择一张图片作为浅色主题壁纸" />
+
+    <Preference
+        android:key="pref_wallpaper_dark"
+        android:title="壁纸 (深色主题)"
+        android:summary="选择一张图片作为深色主题壁纸" />
+
+    <SeekBarPreference
+        android:key="pref_wallpaper_light_alpha"
+        android:title="壁纸透明度 (浅色)"
+        android:defaultValue="100"
+        android:min="0"
+        android:max="100" />
+
+    <SeekBarPreference
+        android:key="pref_wallpaper_dark_alpha"
+        android:title="壁纸透明度 (深色)"
+        android:defaultValue="100"
+        android:min="0"
+        android:max="100" />
+
+    <Preference
+        android:key="pref_version"
+        android:title="当前版本"
+        android:summary="v1.3"
+        android:selectable="false" />
+
+    <Preference
+        android:key="pref_check_update"
+        android:title="检查更新"
+        android:summary="检查是否有新版本可用" />
+
+</PreferenceScreen> 

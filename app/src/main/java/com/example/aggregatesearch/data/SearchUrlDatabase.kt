@@ -68,6 +68,21 @@ abstract class SearchUrlDatabase : RoomDatabase() {
                                 searchUrlDao.insert(tiebaUrl)*/
                                 searchUrlDao.insert(weiboUrl)
 
+
+                                // 创建购物APP分组
+                                val shoppingGroup = UrlGroup(name = "购物", orderIndex = 3)
+                                val shoppingGroupId = searchUrlDao.insertGroup(shoppingGroup)
+
+                                val pddUrl = SearchUrl(name = "拼多多", urlPattern = "pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=%s", groupId = shoppingGroupId, orderIndex = 0, isEnabled = true, packageName = "")
+                                val jdUrl = SearchUrl(name = "京东", urlPattern = "openApp.jdMobile://virtual?params={\"category\":\"jump\",\"des\":\"search\",\"keyWord\":\"%s\"}", groupId = shoppingGroupId, orderIndex = 1, isEnabled = true, packageName = "")
+                                val taobaoUrl = SearchUrl(name = "淘宝", urlPattern = "taobao://list.tmall.com/search_product.html?q=%s", groupId = shoppingGroupId, orderIndex = 2, isEnabled = true, packageName = "")
+                                val xianyuUrl = SearchUrl(name = "闲鱼", urlPattern = "fleamarket://searchitems?keyword=%s&searchType=0", groupId = shoppingGroupId, orderIndex = 3, isEnabled = true, packageName = "")
+
+                                searchUrlDao.insert(pddUrl)
+                                searchUrlDao.insert(jdUrl)
+                                searchUrlDao.insert(taobaoUrl)
+                                searchUrlDao.insert(xianyuUrl)
+
                                 // 创建应用商城分组
                                 val appStoreGroup = UrlGroup(name = "应用商城", orderIndex = 2)
                                 val appStoreGroupId = searchUrlDao.insertGroup(appStoreGroup)
@@ -80,22 +95,6 @@ abstract class SearchUrlDatabase : RoomDatabase() {
                                 searchUrlDao.insert(GooglePlayUrl)
                                 searchUrlDao.insert(vivoUrl)
                                 searchUrlDao.insert(coolUrl)
-
-
-                                // 创建购物APP分组（淘宝暂未成功）
-                                val shoppingGroup = UrlGroup(name = "购物", orderIndex = 3)
-                                val shoppingGroupId = searchUrlDao.insertGroup(shoppingGroup)
-
-                                val pddUrl = SearchUrl(name = "拼多多", urlPattern = "pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=%s", groupId = shoppingGroupId, orderIndex = 0, isEnabled = true, packageName = "")
-                                val jdUrl = SearchUrl(name = "京东", urlPattern = "openApp.jdMobile://virtual?params={\"category\":\"jump\",\"des\":\"search\",\"keyWord\":\"%s\"}", groupId = shoppingGroupId, orderIndex = 1, isEnabled = true, packageName = "")
-                               /* val taobaoUrl = SearchUrl(name = "淘宝", urlPattern = "尚未成功获得", groupId = shoppingGroupId, orderIndex = 2, isEnabled = true, packageName = "")*/
-                                val xianyuUrl = SearchUrl(name = "闲鱼", urlPattern = "fleamarket://searchitems?keyword=%s&searchType=0", groupId = shoppingGroupId, orderIndex = 3, isEnabled = true, packageName = "")
-
-                                searchUrlDao.insert(pddUrl)
-                                searchUrlDao.insert(jdUrl)
-                           /*     searchUrlDao.insert(taobaoUrl)*/
-                                searchUrlDao.insert(xianyuUrl)
-
 
                                 // 创建外卖APP分组
                                 val foodGroup = UrlGroup(name = "外卖", orderIndex = 4)
@@ -111,7 +110,7 @@ abstract class SearchUrlDatabase : RoomDatabase() {
 
 
 /*                                // 创建开发者资源APP分组
-                                val devGroup = UrlGroup(name = "开发者资源", orderIndex = 6)
+                                val devGroup = UrlGroup(name = "开发者资源", orderIndex = 5)
                                 val devGroupId = searchUrlDao.insertGroup(devGroup)
 
                                 // 添加开发者资源链接
@@ -129,7 +128,7 @@ abstract class SearchUrlDatabase : RoomDatabase() {
 
 
                                 // 创建墙外APP分组
-                                val wallGroup = UrlGroup(name = "墙外资源", orderIndex = 8)
+                                val wallGroup = UrlGroup(name = "墙外资源", orderIndex = 6)
                                 val wallGroupId = searchUrlDao.insertGroup(wallGroup)
 
                                 val youtubeUrl = SearchUrl(name = "YouTube", urlPattern = "https://www.youtube.com/results?search_query=%s", groupId = wallGroupId, orderIndex = 0, isEnabled = true, packageName = "")

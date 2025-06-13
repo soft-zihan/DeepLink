@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">深链搜索</string>
+    <string name="app_name">DeepLink</string>
     <string name="search_hint">请输入搜索内容...</string>
     <string name="search_button">搜索</string>
     <string name="add_url">添加链接</string>
@@ -8,4 +8,27 @@
     <string name="save">保存</string>
     <string name="cancel">取消</string>
     <string name="delete">删除</string>
+    <string-array name="toolbar_colors_entries">
+        <item>默认</item>
+        <item>红色</item>
+        <item>绿色</item>
+        <item>蓝色</item>
+    </string-array>
+    <string-array name="toolbar_colors_values">
+        <item>#6200EE</item> <!-- 默认 Material 颜色 -->
+        <item>#F44336</item>
+        <item>#4CAF50</item>
+        <item>#2196F3</item>
+    </string-array>
+
+    <string-array name="theme_entries">
+        <item>跟随系统</item>
+        <item>浅色</item>
+        <item>深色</item>
+    </string-array>
+    <string-array name="theme_values">
+        <item>system</item>
+        <item>light</item>
+        <item>dark</item>
+    </string-array>
 </resources>

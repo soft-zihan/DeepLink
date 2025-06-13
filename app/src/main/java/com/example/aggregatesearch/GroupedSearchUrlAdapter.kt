@@ -9,6 +9,8 @@ import android.widget.CheckBox
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.aggregatesearch.data.SearchUrl
 import com.example.aggregatesearch.data.UrlGroup
@@ -17,28 +19,21 @@ class GroupedSearchUrlAdapter(
     private val onItemClicked: (Any) -> Unit,
     private val onDeleteItemClicked: (Any) -> Unit,
     private val onEditItemClicked: (Any) -> Unit, // 新增编辑项目的回调
+    private val onAddUrlClicked: (UrlGroup) -> Unit,
     private val onUrlCheckChanged: (SearchUrl, Boolean) -> Unit,
     private val onGroupCheckChanged: (UrlGroup, Boolean) -> Unit,
     private val onGroupExpandCollapse: (UrlGroup, Boolean) -> Unit,
     private val onItemMoveRequested: (fromPosition: Int, toPosition: Int) -> Unit,
     private val getUrlsForGroup: (groupId: Long) -> List<SearchUrl> // 添加一个新的函数参数用于获取组内所有URL
-) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+) : ListAdapter<Any, RecyclerView.ViewHolder>(GroupedItemDiffCallback()) {
 
     companion object {
         private const val VIEW_TYPE_GROUP = 0
         private const val VIEW_TYPE_URL = 1
     }
 
-    private var items: List<Any> = listOf()
-
-    @SuppressLint("NotifyDataSetChanged")
-    fun submitList(newItems: List<Any>) {
-        items = newItems
-        notifyDataSetChanged()
-    }
-
     override fun getItemViewType(position: Int): Int {
-        return when (items[position]) {
+        return when (getItem(position)) {
             is UrlGroup -> VIEW_TYPE_GROUP
             is SearchUrl -> VIEW_TYPE_URL
             else -> throw IllegalArgumentException("Unknown item type at position $position")
@@ -55,43 +50,41 @@ class GroupedSearchUrlAdapter(
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        when (val item = items[position]) {
+        when (val item = getItem(position)) {
             is UrlGroup -> (holder as GroupViewHolder).bind(item)
             is SearchUrl -> (holder as UrlViewHolder).bind(item)
         }
     }
 
-    override fun getItemCount() = items.size
-
-    fun getItemAt(position: Int): Any = items[position]
-    fun getItems(): List<Any> = items
+    fun getItemAt(position: Int): Any = getItem(position)
+    fun getItems(): List<Any> = currentList
 
     fun getGroupOriginalIndex(group: UrlGroup): Int {
         var groupCount = 0
-        for(i in items.indices){
-            if(items[i] is UrlGroup){
-                if(items[i] == group) return groupCount
+        for(i in currentList.indices){
+            if(currentList[i] is UrlGroup){
+                if(currentList[i] == group) return groupCount
                 groupCount++
             }
         }
         return -1
     }
 
-
     inner class GroupViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val textViewGroupName: TextView = itemView.findViewById(R.id.textViewGroupName)
+        private val clickableGroupArea: View = itemView.findViewById(R.id.clickableGroupArea)
         private val checkboxGroupSelect: CheckBox = itemView.findViewById(R.id.checkboxGroupSelect)
         private val imageViewExpandCollapse: ImageView = itemView.findViewById(R.id.imageViewExpandCollapse)
         private val dragHandle: ImageView = itemView.findViewById(R.id.drag_handle_group)
         private val buttonDeleteGroup: ImageButton = itemView.findViewById(R.id.buttonDeleteGroup)
         private val buttonEditGroup: ImageButton = itemView.findViewById(R.id.buttonEditGroup)
+        private val buttonAddUrlToGroup: ImageButton = itemView.findViewById(R.id.buttonAddUrlToGroup)
 
         @SuppressLint("ClickableViewAccessibility")
         fun bind(group: UrlGroup) {
             textViewGroupName.text = group.name
             checkboxGroupSelect.setOnCheckedChangeListener(null)
 
-            // 改为从所有URL列表中查找该分组下的所有URL，而不是仅检查当前显示的items列表
             val allUrlsInGroup = getUrlsForGroup(group.id)
             val isGroupSelected = allUrlsInGroup.isNotEmpty() && allUrlsInGroup.all { it.isEnabled }
             checkboxGroupSelect.isChecked = isGroupSelected
@@ -99,31 +92,28 @@ class GroupedSearchUrlAdapter(
             checkboxGroupSelect.setOnCheckedChangeListener { _, isChecked ->
                 onGroupCheckChanged(group, isChecked)
             }
-            imageViewExpandCollapse.setImageResource(
-                if (group.isExpanded) android.R.drawable.arrow_up_float
-                else android.R.drawable.arrow_down_float
-            )
+            imageViewExpandCollapse.rotation = if (group.isExpanded) 180f else 0f
             imageViewExpandCollapse.setOnClickListener {
+                imageViewExpandCollapse.animate()
+                    .rotationBy(180f)
+                    .setDuration(300)
+                    .start()
                 onGroupExpandCollapse(group, !group.isExpanded)
             }
-
-            // 设置整个项目的点击事件，用于触发分组内所有链接
-            itemView.setOnClickListener { onItemClicked(group) }
-
-            // 长按拖动功能，使整个分组项长按可拖动
+            clickableGroupArea.setOnClickListener { onItemClicked(group) }
+            itemView.setOnClickListener(null)
             itemView.setOnLongClickListener {
                 itemView.parent?.requestDisallowInterceptTouchEvent(true)
                 true
             }
-
-            // 为删除按钮设置点击事件
             buttonDeleteGroup.setOnClickListener {
                 onDeleteItemClicked(group)
             }
-
-            // 为编辑按钮设置点击事件
             buttonEditGroup.setOnClickListener {
                 onEditItemClicked(group)
+            }
+            buttonAddUrlToGroup.setOnClickListener {
+                onAddUrlClicked(group)
             }
         }
     }
@@ -139,7 +129,7 @@ class GroupedSearchUrlAdapter(
         @SuppressLint("ClickableViewAccessibility")
         fun bind(searchUrl: SearchUrl) {
             textViewUrlName.text = searchUrl.name
-            textViewUrlPattern.text = searchUrl.urlPattern
+            textViewUrlPattern.visibility = View.GONE
             checkboxUrlEnabled.setOnCheckedChangeListener(null)
             checkboxUrlEnabled.isChecked = searchUrl.isEnabled
             checkboxUrlEnabled.setOnCheckedChangeListener { _, isChecked ->
@@ -148,12 +138,28 @@ class GroupedSearchUrlAdapter(
             buttonDeleteUrl.setOnClickListener { onDeleteItemClicked(searchUrl) }
             buttonEditUrl.setOnClickListener { onEditItemClicked(searchUrl) }
             itemView.setOnClickListener { onItemClicked(searchUrl) }
-
-            // 长按拖动功能，让整个链接项长按可拖动
             itemView.setOnLongClickListener {
                 itemView.parent?.requestDisallowInterceptTouchEvent(true)
                 true
             }
+        }
+    }
+}
+
+class GroupedItemDiffCallback : DiffUtil.ItemCallback<Any>() {
+    override fun areItemsTheSame(oldItem: Any, newItem: Any): Boolean {
+        return when {
+            oldItem is UrlGroup && newItem is UrlGroup -> oldItem.id == newItem.id
+            oldItem is SearchUrl && newItem is SearchUrl -> oldItem.id == newItem.id
+            else -> oldItem == newItem
+        }
+    }
+
+    override fun areContentsTheSame(oldItem: Any, newItem: Any): Boolean {
+        return when {
+            oldItem is UrlGroup && newItem is UrlGroup -> oldItem == newItem
+            oldItem is SearchUrl && newItem is SearchUrl -> oldItem == newItem
+            else -> oldItem == newItem
         }
     }
 }

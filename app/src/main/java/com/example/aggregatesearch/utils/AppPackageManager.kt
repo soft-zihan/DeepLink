@@ -21,20 +21,23 @@ class AppPackageManager(private val context: Context) {
     )
 
     /**
-     * 获取设备上所有已安装的应用信息
-     * 此操作可能很耗时，应在后台线程中执行
+     * 获取所有带有 Launcher 图标的可启动应用
      */
     suspend fun getInstalledApps(): List<AppInfo> = withContext(Dispatchers.IO) {
-        val packageManager = context.packageManager
-        val installedApps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
+        val pm = context.packageManager
+        // 1. 获取所有已安装应用
+        val allApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
 
-        installedApps.map { applicationInfo ->
+        // 2. 筛选出可以启动的应用
+        allApps.filter { appInfo ->
+            pm.getLaunchIntentForPackage(appInfo.packageName) != null
+        }.map { appInfo ->
             AppInfo(
-                packageName = applicationInfo.packageName,
-                appName = applicationInfo.loadLabel(packageManager).toString(),
-                isSystemApp = (applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                packageName = appInfo.packageName,
+                appName = appInfo.loadLabel(pm).toString(),
+                isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
             )
-        }.sortedBy { it.appName }
+        }.distinctBy { it.packageName }.sortedBy { it.appName }
     }
 
     /**

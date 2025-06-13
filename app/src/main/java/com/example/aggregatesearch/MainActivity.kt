@@ -1,5 +1,8 @@
 package com.example.aggregatesearch
 
+import android.content.Context
+import android.content.Intent
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -8,6 +11,9 @@ import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
+import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -21,8 +27,10 @@ import com.example.aggregatesearch.data.UrlGroup
 import com.example.aggregatesearch.databinding.ActivityMainBinding
 import com.example.aggregatesearch.databinding.DialogAddGroupBinding
 import com.example.aggregatesearch.databinding.DialogAddUrlBinding
-import com.example.aggregatesearch.dialogs.AppSelectionDialogFragment
 import com.example.aggregatesearch.utils.AppPackageManager
+import com.example.aggregatesearch.utils.SearchHistoryManager
+import com.example.aggregatesearch.utils.UiUtils
+import com.example.aggregatesearch.utils.PinnedSearchManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -30,6 +38,8 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
+import android.content.res.ColorStateList
+import android.graphics.Color
 
 class MainActivity : AppCompatActivity() {
 
@@ -40,6 +50,21 @@ class MainActivity : AppCompatActivity() {
     private lateinit var groupedAdapter: GroupedSearchUrlAdapter
     private lateinit var itemTouchHelper: ItemTouchHelper
 
+    // 搜索历史管理
+    private lateinit var searchHistoryManager: SearchHistoryManager
+
+    // 常搜（固定）管理
+    private lateinit var pinnedSearchManager: PinnedSearchManager
+
+    // 全选按钮状态
+    private var isAllSelected: Boolean = false
+
+    // 选择应用结果回调相关
+    private var currentPackageNameEditText: android.widget.EditText? = null
+    private var currentSelectedAppNameTextView: android.widget.TextView? = null
+    private var onAppSelectedGlobal: ((String, String) -> Unit)? = null
+    private lateinit var appSelectionResultLauncher: androidx.activity.result.ActivityResultLauncher<android.content.Intent>
+
     private val createBackupFile = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         uri?.let { exportBackup(it) }
     }
@@ -48,21 +73,61 @@ class MainActivity : AppCompatActivity() {
         uri?.let { importBackup(it) }
     }
 
+    private var pinnedEditMode = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // 应用顶栏颜色
+        UiUtils.applyToolbarColor(this)
+
+        // 应用壁纸
+        UiUtils.applyWallpaper(binding.root, this)
+
+        // 初始化搜索历史管理
+        searchHistoryManager = SearchHistoryManager(this)
+
+        // 初始化常搜管理
+        pinnedSearchManager = PinnedSearchManager(this)
+
+        // 注册应用选择结果回调
+        appSelectionResultLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                val data = result.data
+                val packageName = data?.getStringExtra(com.example.aggregatesearch.activities.AppSelectionActivity.EXTRA_PACKAGE_NAME) ?: ""
+                val appName = data?.getStringExtra(com.example.aggregatesearch.activities.AppSelectionActivity.EXTRA_APP_NAME) ?: ""
+                onAppSelectedGlobal?.invoke(packageName, appName)
+            }
+        }
+
         setupRecyclerView()
         setupSearchFunction()
-        setupAddUrlButton()
-        setupAddGroupButton()
 
         lifecycleScope.launch {
             searchViewModel.groupedItems.collectLatest {
                 groupedAdapter.submitList(it)
             }
         }
+
+        setupSelectAllButton()
+
+        refreshSearchHistorySuggestions()
+        refreshPinnedChips()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        UiUtils.applyToolbarColor(this)
+        // 同步搜索按钮颜色
+        val colorStr = getSharedPreferences("ui_prefs", MODE_PRIVATE).getString("toolbar_color", "#6200EE") ?: "#6200EE"
+        binding.buttonSearch.backgroundTintList = ColorStateList.valueOf(Color.parseColor(colorStr))
+
+        UiUtils.applyWallpaper(binding.root, this)
+
+        refreshSearchHistorySuggestions()
+        refreshPinnedChips()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -72,12 +137,34 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.menu_backup -> {
-                createBackupFile.launch("deeplink_search_backup.json")
+            R.id.menu_pin -> {
+                val query = binding.editTextSearch.text.toString().trim()
+                if (query.isNotEmpty()) {
+                    pinnedSearchManager.addPin(query)
+                    refreshPinnedChips()
+                    Toast.makeText(this, "已固定", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "请输入内容后再固定", Toast.LENGTH_SHORT).show()
+                }
                 true
             }
-            R.id.menu_restore -> {
-                openRestoreFile.launch(arrayOf("application/json"))
+            R.id.menu_plus -> {
+                // 二选一弹窗
+                AlertDialog.Builder(this)
+                    .setTitle("请选择要添加的内容")
+                    .setItems(arrayOf("创建分组", "创建链接")) { _, which ->
+                        if (which == 0) {
+                            showAddGroupDialog()
+                        } else {
+                            showAddUrlDialog()
+                        }
+                    }
+                    .show()
+                true
+            }
+            R.id.menu_settings -> {
+                // 打开设置界面
+                startActivity(Intent(this, SettingsActivity::class.java))
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -201,7 +288,7 @@ class MainActivity : AppCompatActivity() {
                     // 无论是否输入关键词，都尝试打开链接
                     UrlLauncher.launchSearchUrls(this, searchQuery, listOf(item))
                 } else if (item is UrlGroup) {
-                    // 当点击分组时，获取该分组内所有��用的链接并打开
+                    // 当点击分组时，获取该分组内所有用的链接并打开
                     val searchQuery = binding.editTextSearch.text.toString().trim()
                     val enabledUrlsInGroup = searchViewModel.getUrlsByGroupId(item.id).filter { it.isEnabled }
                     if (enabledUrlsInGroup.isNotEmpty()) {
@@ -219,6 +306,9 @@ class MainActivity : AppCompatActivity() {
                 // 新增编辑功能
                 if (item is SearchUrl) showEditUrlDialog(item)
                 else if (item is UrlGroup) showEditGroupDialog(item)
+            },
+            onAddUrlClicked = { group ->
+                showAddUrlDialog(group)
             },
             onUrlCheckChanged = { searchUrl, isChecked ->
                 searchViewModel.updateUrl(searchUrl.copy(isEnabled = isChecked))
@@ -365,6 +455,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAddUrlDialog() {
+        showAddUrlDialog(null)
+    }
+
+    private fun showAddUrlDialog(preSelectedGroup: UrlGroup?) {
         val dialogBinding = DialogAddUrlBinding.inflate(LayoutInflater.from(this))
         val currentGroups = searchViewModel.allGroups.value
 
@@ -377,24 +471,32 @@ class MainActivity : AppCompatActivity() {
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, groupNames)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         dialogBinding.spinnerGroup.adapter = adapter
-        dialogBinding.spinnerGroup.setSelection(0)
+
+        if (preSelectedGroup != null) {
+            val idx = currentGroups.indexOfFirst { g -> g.id == preSelectedGroup.id }
+            if (idx >= 0) dialogBinding.spinnerGroup.setSelection(idx)
+        } else {
+            dialogBinding.spinnerGroup.setSelection(0)
+        }
 
         // 设置选择应用按钮点击事件
         var selectedPackageName = ""
-        dialogBinding.btnSelectApp.setOnClickListener {
-            val dialog = AppSelectionDialogFragment.newInstance()
-            dialog.setOnAppSelectedListener { packageName: String, appName: String ->
-                selectedPackageName = packageName
-                if (packageName.isNotEmpty()) {
-                    dialogBinding.editTextPackageName.setText(packageName as CharSequence)
-                    dialogBinding.textViewSelectedAppName.text = "已选择: $appName"
-                    dialogBinding.textViewSelectedAppName.visibility = View.VISIBLE
-                } else {
-                    dialogBinding.editTextPackageName.setText("" as CharSequence)
-                    dialogBinding.textViewSelectedAppName.visibility = View.GONE
-                }
+
+        currentPackageNameEditText = dialogBinding.editTextPackageName
+        currentSelectedAppNameTextView = dialogBinding.textViewSelectedAppName
+        onAppSelectedGlobal = { packageName: String, appName: String ->
+            selectedPackageName = packageName
+            currentPackageNameEditText?.setText(packageName)
+            if (packageName.isNotEmpty()) {
+                currentSelectedAppNameTextView?.text = "已选择: $appName"
+                currentSelectedAppNameTextView?.visibility = View.VISIBLE
+            } else {
+                currentSelectedAppNameTextView?.visibility = View.GONE
             }
-            dialog.show(supportFragmentManager, AppSelectionDialogFragment.TAG)
+        }
+
+        dialogBinding.btnSelectApp.setOnClickListener {
+            appSelectionResultLauncher.launch(Intent(this, com.example.aggregatesearch.activities.AppSelectionActivity::class.java))
         }
 
         val dialog = AlertDialog.Builder(this)
@@ -412,7 +514,7 @@ class MainActivity : AppCompatActivity() {
             val selectedGroupPosition = dialogBinding.spinnerGroup.selectedItemPosition
             val selectedGroup = currentGroups[selectedGroupPosition]
 
-            if (name.isNotEmpty() && pattern.isNotEmpty()) {
+            if (name.isNotEmpty()) {
                 val searchUrl = SearchUrl(
                     name = name,
                     urlPattern = pattern,
@@ -422,7 +524,7 @@ class MainActivity : AppCompatActivity() {
                 searchViewModel.insert(searchUrl)
                 dialog.dismiss()
             } else {
-                Toast.makeText(this, "名称和链接不能为空", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -488,20 +590,36 @@ class MainActivity : AppCompatActivity() {
         }
 
         // 设置选择应用按钮点击事件
-        dialogBinding.btnSelectApp.setOnClickListener {
-            val dialog = AppSelectionDialogFragment.newInstance()
-            dialog.setOnAppSelectedListener { packageName: String, appName: String ->
-                selectedPackageName = packageName
-                if (packageName.isNotEmpty()) {
-                    dialogBinding.editTextPackageName.setText(packageName as CharSequence)
-                    dialogBinding.textViewSelectedAppName.text = "已选择: $appName"
-                    dialogBinding.textViewSelectedAppName.visibility = View.VISIBLE
-                } else {
-                    dialogBinding.editTextPackageName.setText("" as CharSequence)
-                    dialogBinding.textViewSelectedAppName.visibility = View.GONE
-                }
+        currentPackageNameEditText = dialogBinding.editTextPackageName
+        currentSelectedAppNameTextView = dialogBinding.textViewSelectedAppName
+        onAppSelectedGlobal = { packageName: String, appName: String ->
+            selectedPackageName = packageName
+            currentPackageNameEditText?.setText(packageName)
+            if (packageName.isNotEmpty()) {
+                currentSelectedAppNameTextView?.text = "已选择: $appName"
+                currentSelectedAppNameTextView?.visibility = View.VISIBLE
+            } else {
+                currentSelectedAppNameTextView?.visibility = View.GONE
             }
-            dialog.show(supportFragmentManager, AppSelectionDialogFragment.TAG)
+        }
+
+        dialogBinding.btnSelectApp.setOnClickListener {
+            appSelectionResultLauncher.launch(Intent(this, com.example.aggregatesearch.activities.AppSelectionActivity::class.java))
+        }
+
+        // 同步按钮颜色
+        val colorStr = getSharedPreferences("ui_prefs", MODE_PRIVATE).getString("toolbar_color", "#6200EE") ?: "#6200EE"
+        val tint = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(colorStr))
+        dialogBinding.btnSelectApp.backgroundTintList = tint
+        dialogBinding.btnSelectApp.setTextColor(android.graphics.Color.WHITE)
+        dialogBinding.btnTestUrl.backgroundTintList = tint
+        dialogBinding.btnTestUrl.setTextColor(android.graphics.Color.WHITE)
+
+        dialogBinding.btnTestUrl.setOnClickListener {
+            val name = dialogBinding.editTextUrlName.text.toString().trim().ifEmpty { "测试" }
+            val pattern = dialogBinding.editTextUrlPattern.text.toString().trim()
+            val tempUrl = searchUrl.copy(name = name, urlPattern = pattern, packageName = selectedPackageName)
+            UrlLauncher.launchSearchUrls(this, binding.editTextSearch.text.toString().trim(), listOf(tempUrl))
         }
 
         val dialog = AlertDialog.Builder(this)
@@ -517,7 +635,7 @@ class MainActivity : AppCompatActivity() {
             val name = dialogBinding.editTextUrlName.text.toString().trim()
             val pattern = dialogBinding.editTextUrlPattern.text.toString().trim()
 
-            if (name.isNotEmpty() && pattern.isNotEmpty()) {
+            if (name.isNotEmpty()) {
                 val updatedUrl = searchUrl.copy(
                     name = name,
                     urlPattern = pattern,
@@ -526,7 +644,7 @@ class MainActivity : AppCompatActivity() {
                 searchViewModel.updateUrl(updatedUrl)
                 dialog.dismiss()
             } else {
-                Toast.makeText(this, "名称和链接不能为空", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -577,6 +695,20 @@ class MainActivity : AppCompatActivity() {
     private fun performSearch() {
         val searchQuery = binding.editTextSearch.text.toString().trim()
         if (searchQuery.isNotEmpty()) {
+            // 保存历史
+            if (searchHistoryManager.isHistoryEnabled()) {
+                searchHistoryManager.addQuery(searchQuery)
+                val autoText = binding.editTextSearch as? AutoCompleteTextView
+                autoText?.threshold = 0
+                val adapter = autoText?.adapter as? ArrayAdapter<String>
+                if (adapter != null) {
+                    adapter.clear()
+                    adapter.addAll(searchHistoryManager.getHistory())
+                    adapter.notifyDataSetChanged()
+                } else {
+                    autoText?.setAdapter(ArrayAdapter(this, android.R.layout.simple_list_item_1, searchHistoryManager.getHistory()))
+                }
+            }
             val selectedUrls = searchViewModel.allUrls.value?.filter { it.isEnabled } ?: listOf()
             if (selectedUrls.isNotEmpty()){
                 UrlLauncher.launchSearchUrls(this, searchQuery, selectedUrls)
@@ -588,15 +720,73 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupAddUrlButton() {
-        binding.buttonAddUrl.setOnClickListener {
-            showAddUrlDialog()
+    private fun setupSelectAllButton() {
+        val autoText = binding.editTextSearch as? AutoCompleteTextView
+        autoText?.apply {
+            threshold = 0 // 点击即弹出
+            if (searchHistoryManager.isHistoryEnabled()) {
+                setAdapter(ArrayAdapter(this@MainActivity, android.R.layout.simple_list_item_1, searchHistoryManager.getHistory()))
+            }
+            setOnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) {
+                    showDropDown()
+                }
+            }
+            setOnClickListener {
+                showDropDown()
+            }
+        }
+
+        binding.buttonSelectAll.setOnClickListener {
+            isAllSelected = !isAllSelected
+            // 更新图标
+            val iconRes = if (isAllSelected) android.R.drawable.checkbox_on_background else android.R.drawable.checkbox_off_background
+            binding.buttonSelectAll.setImageResource(iconRes)
+
+            // 更新所有链接选中状态
+            searchViewModel.setAllUrlsEnabled(isAllSelected)
         }
     }
 
-    private fun setupAddGroupButton() {
-        binding.buttonAddGroup.setOnClickListener {
-            showAddGroupDialog()
+    /** 刷新搜索历史下拉建议 */
+    private fun refreshSearchHistorySuggestions() {
+        val autoText = binding.editTextSearch as? AutoCompleteTextView ?: return
+        if (searchHistoryManager.isHistoryEnabled()) {
+            autoText.setAdapter(ArrayAdapter(this, android.R.layout.simple_list_item_1, searchHistoryManager.getHistory()))
+        } else {
+            autoText.setAdapter(null)
         }
+    }
+
+    /** 刷新固定关键词 Chips */
+    private fun refreshPinnedChips() {
+        val container = binding.containerPinned
+        container.removeAllViews()
+        val inflater = LayoutInflater.from(this)
+        val pinned = pinnedSearchManager.getPinned()
+        for (word in pinned) {
+            val chip = com.google.android.material.chip.Chip(this, null, com.google.android.material.R.attr.chipStyle).apply {
+                text = word
+                isCloseIconVisible = pinnedEditMode
+                setOnClickListener {
+                    if (pinnedEditMode) {
+                        // 删除
+                        pinnedSearchManager.removePin(word)
+                        refreshPinnedChips()
+                    } else {
+                        binding.editTextSearch.setText(word)
+                        binding.editTextSearch.setSelection(word.length)
+                        performSearch()
+                    }
+                }
+                setOnLongClickListener {
+                    pinnedEditMode = !pinnedEditMode
+                    refreshPinnedChips()
+                    true
+                }
+            }
+            container.addView(chip)
+        }
+        binding.scrollViewPinned.visibility = if (pinned.isEmpty()) View.GONE else View.VISIBLE
     }
 }

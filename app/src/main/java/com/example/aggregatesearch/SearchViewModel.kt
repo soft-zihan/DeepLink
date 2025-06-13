@@ -140,6 +140,13 @@ class SearchViewModel(private val repository: SearchUrlRepository) : ViewModel()
     fun updateGroup(group: UrlGroup) = viewModelScope.launch {
         repository.updateGroup(group)
     }
+
+    fun setAllUrlsEnabled(enabled: Boolean) = viewModelScope.launch {
+        val current = allUrls.value
+        if (current.isNotEmpty()) {
+            repository.updateAllUrls(current.map { it.copy(isEnabled = enabled) })
+        }
+    }
 }
 
 class SearchViewModelFactory(private val repository: SearchUrlRepository) : ViewModelProvider.Factory {

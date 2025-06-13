@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="horizontal"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+        android:text="顶栏颜色"
+        android:layout_marginEnd="16dp" />
+
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/colorToggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:singleSelection="true">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnPurple"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:backgroundTint="#6200EE"
+            android:insetTop="0dp"
+            android:insetBottom="0dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnBlue"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:backgroundTint="#03A9F4"
+            android:insetTop="0dp"
+            android:insetBottom="0dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnGreen"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:backgroundTint="#4CAF50"
+            android:insetTop="0dp"
+            android:insetBottom="0dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRed"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:backgroundTint="#F44336"
+            android:insetTop="0dp"
+            android:insetBottom="0dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnBlack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:backgroundTint="#000000"
+            android:insetTop="0dp"
+            android:insetBottom="0dp" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+</LinearLayout> 

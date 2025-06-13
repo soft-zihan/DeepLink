@@ -5,28 +5,27 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
-        android:elevation="4dp"
-        app:title="选择应用"
-        app:navigationIcon="@drawable/ic_arrow_back"
+    <Button
+        android:id="@+id/btnClearBind"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="取消绑定"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
-        app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"/>
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/textInputLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        app:layout_constraintTop_toBottomOf="@id/toolbar"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btnClearBind"
+        app:layout_constraintTop_toTopOf="@id/btnClearBind"
+        app:layout_constraintBottom_toBottomOf="@id/btnClearBind"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="8dp"
         app:startIconDrawable="@drawable/ic_search">
 
         <com.google.android.material.textfield.TextInputEditText

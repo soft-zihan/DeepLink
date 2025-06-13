@@ -20,6 +20,20 @@ object UrlLauncher {
             if (!url.isEnabled && selectedUrls.size > 1) continue
 
             try {
+                // 如果链接为空，尝试直接使用包名启动应用
+                if (url.urlPattern.isEmpty()) {
+                    if (url.packageName.isNotEmpty()) {
+                        val launchIntent = context.packageManager.getLaunchIntentForPackage(url.packageName)
+                        if (launchIntent != null) {
+                            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(launchIntent)
+                        } else {
+                            Toast.makeText(context, "无法启动应用: ${url.packageName}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    continue
+                }
+
                 val formattedUrl = if (url.urlPattern.contains("%s")) {
                     if (searchQuery.isEmpty()) {
                         // 当搜索查询为空时，直接删除%s

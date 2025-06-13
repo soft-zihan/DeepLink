@@ -2,6 +2,7 @@ package com.example.aggregatesearch.activities
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -12,9 +13,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.aggregatesearch.R
 import com.example.aggregatesearch.adapters.AppAdapter
 import com.example.aggregatesearch.databinding.ActivityAppSelectionBinding
 import com.example.aggregatesearch.utils.AppPackageManager
+import com.example.aggregatesearch.utils.UiUtils
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -97,16 +100,26 @@ class AppSelectionActivity : AppCompatActivity() {
         binding = ActivityAppSelectionBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setupToolbar()
+        UiUtils.applyToolbarColor(this)
+
         setupRecyclerView()
         setupSearchInput()
         observeViewModel()
     }
 
     private fun setupToolbar() {
-        binding.toolbar.setNavigationOnClickListener {
+        binding.btnClearBind.setOnClickListener {
+            val resultIntent = Intent().apply {
+                putExtra(EXTRA_PACKAGE_NAME, "")
+                putExtra(EXTRA_APP_NAME, "")
+            }
+            setResult(Activity.RESULT_OK, resultIntent)
             finish()
         }
+        val colorStr = getSharedPreferences("ui_prefs", 0).getString("toolbar_color", "#6200EE") ?: "#6200EE"
+        val tint = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(colorStr))
+        binding.btnClearBind.backgroundTintList = tint
+        binding.btnClearBind.setTextColor(android.graphics.Color.WHITE)
     }
 
     private fun setupRecyclerView() {
@@ -154,6 +167,15 @@ class AppSelectionActivity : AppCompatActivity() {
                 binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        UiUtils.applyToolbarColor(this)
+        val colorStr = getSharedPreferences("ui_prefs", 0).getString("toolbar_color", "#6200EE") ?: "#6200EE"
+        val tint2 = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(colorStr))
+        binding.btnClearBind.backgroundTintList = tint2
+        binding.btnClearBind.setTextColor(android.graphics.Color.WHITE)
     }
 
     companion object {

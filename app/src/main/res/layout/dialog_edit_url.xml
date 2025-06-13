@@ -28,7 +28,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="链接地址（使用%s表示搜索词位置）"
-            android:inputType="textUri" />
+            android:inputType="textUri|textMultiLine"
+            android:minLines="3"
+            android:gravity="top|start" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <!-- 添加应用包名选择功能 -->
@@ -64,7 +66,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="选择应用"
-            style="@style/Widget.MaterialComponents.Button.TextButton"/>
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:textColor="@android:color/white"/>
     </LinearLayout>
 
     <TextView
@@ -75,5 +78,12 @@
         android:layout_marginBottom="8dp"
         android:text=""
         android:visibility="gone"/>
+
+    <Button
+        android:id="@+id/btnTestUrl"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="测试链接"
+        android:textColor="@android:color/white" />
 
 </LinearLayout>
