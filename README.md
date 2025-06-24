@@ -12,7 +12,7 @@
 3. scheme URL有小概率随着对应软件的版本更新变化，如果失效可以提交issue。如能提供新的scheme URL将感之不尽。
 4. 其他被建议的功能。
 
-## 程序预览
+## 程序预览（暂未完成且暂未发布，预计更新计划1.1更新完成后发布）
 
 <img src="https://github.com/user-attachments/assets/ab677970-6724-482c-8a5c-b4c3edd0ce0d" alt="Screenshot_20250624_215114" width="300">
 
