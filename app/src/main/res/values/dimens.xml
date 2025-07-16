@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 颜色选择器对话框的尺寸 -->
+    <dimen name="color_item_size">48dp</dimen>
+    <dimen name="color_item_margin">4dp</dimen>
+</resources>
+

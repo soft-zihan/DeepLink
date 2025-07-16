@@ -103,6 +103,7 @@ class AppSelectionDialogFragment : DialogFragment() {
         }
 
         binding.btnClearPackage.setOnClickListener {
+            // 确保回调被调用，并明确传入空字符串来表示清除选择
             onAppSelected?.invoke("", "")
             dismiss()
         }

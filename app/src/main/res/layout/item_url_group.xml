@@ -7,11 +7,15 @@
     android:padding="8dp"
     android:background="?attr/colorSurfaceVariant">
 
-    <CheckBox
-        android:id="@+id/checkboxGroupSelect"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp" />
+    <!-- 添加拖动手柄 -->
+    <ImageView
+        android:id="@+id/drag_handle_group"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_gravity="center_vertical"
+        android:src="@android:drawable/ic_menu_more"
+        android:tint="#888888"
+        android:layout_marginEnd="4dp"/>
 
     <LinearLayout
         android:id="@+id/clickableGroupArea"
@@ -25,6 +29,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="16sp"
+            android:textColor="?android:attr/textColorPrimary"
             android:textStyle="bold" />
     </LinearLayout>
 
@@ -36,6 +41,7 @@
         android:layout_marginEnd="8dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@android:drawable/ic_input_add"
+        android:visibility="gone"
         app:tint="#555555" />
 
     <ImageButton
@@ -46,16 +52,7 @@
         android:layout_marginEnd="8dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@android:drawable/ic_menu_edit"
-        app:tint="#555555" />
-
-    <ImageButton
-        android:id="@+id/buttonDeleteGroup"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_gravity="center_vertical"
-        android:layout_marginEnd="8dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_menu_delete"
+        android:visibility="gone"
         app:tint="#555555" />
 
     <ImageView
@@ -63,13 +60,6 @@
         android:layout_width="24dp"
         android:layout_height="24dp"
         android:layout_gravity="center_vertical"
-        app:tint="#555555"
-        android:src="@android:drawable/arrow_down_float" />
-
-    <!-- 隐藏的拖动处理器，用户可以长按整个分组项来拖动 -->
-    <ImageView
-        android:id="@+id/drag_handle_group"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone" />
+        android:src="@android:drawable/arrow_down_float"
+        app:tint="#555555" />
 </LinearLayout>

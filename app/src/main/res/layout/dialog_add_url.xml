@@ -91,4 +91,14 @@
         android:text=""
         android:visibility="gone"/>
 
+    <!-- 添加取消绑定按钮 -->
+    <Button
+        android:id="@+id/btnCancelAppBinding"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="取消绑定"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:textColor="?attr/colorPrimary"
+        android:layout_marginBottom="8dp"/>
+
 </LinearLayout>

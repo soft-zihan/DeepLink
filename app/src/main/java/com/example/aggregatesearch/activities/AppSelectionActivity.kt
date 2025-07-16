@@ -2,185 +2,223 @@ package com.example.aggregatesearch.activities
 
 import android.app.Activity
 import android.content.Intent
-import android.graphics.Color
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.LayoutInflater
 import android.view.View
-import androidx.activity.viewModels
+import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.widget.ImageView
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.aggregatesearch.R
-import com.example.aggregatesearch.adapters.AppAdapter
-import com.example.aggregatesearch.databinding.ActivityAppSelectionBinding
-import com.example.aggregatesearch.utils.AppPackageManager
-import com.example.aggregatesearch.utils.UiUtils
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-
-class AppSelectionViewModel(private val appPackageManager: AppPackageManager) : ViewModel() {
-    private val _apps = MutableStateFlow<List<AppPackageManager.AppInfo>>(emptyList())
-    val apps: StateFlow<List<AppPackageManager.AppInfo>> = _apps.asStateFlow()
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-    // 缓存所有应用列表
-    private var allApps: List<AppPackageManager.AppInfo> = emptyList()
-
-    init {
-        loadApps()
-    }
-
-    private fun loadApps() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            allApps = appPackageManager.getInstalledApps()
-            _apps.value = allApps
-            _isLoading.value = false
-        }
-    }
-
-    fun searchApps(query: String) {
-        viewModelScope.launch {
-            _isLoading.value = true
-
-            if (query.isEmpty()) {
-                _apps.value = allApps
-            } else {
-                // 增强搜索能力：分词搜索、拼音匹配、多关键词匹配
-                val lowerCaseQuery = query.lowercase()
-                val keywords = lowerCaseQuery.split("\\s+".toRegex()).filter { it.isNotEmpty() }
-
-                val results = allApps.filter { app ->
-                    val nameLower = app.appName.lowercase()
-                    val packageLower = app.packageName.lowercase()
-
-                    // 匹配任何关键词
-                    keywords.any { keyword ->
-                        nameLower.contains(keyword) || packageLower.contains(keyword) ||
-                        // 针对常见应用的特殊处理
-                        (keyword == "微信" && (packageLower.contains("wechat") || packageLower.contains("weixin"))) ||
-                        (keyword == "支付宝" && packageLower.contains("alipay")) ||
-                        (keyword == "qq" && (packageLower.contains("mobileqq") || packageLower == "com.tencent.qq"))
-                    }
-                }.sortedBy { it.appName }
-
-                _apps.value = results
-            }
-
-            _isLoading.value = false
-        }
-    }
-}
+import com.google.android.material.textfield.TextInputEditText
+import java.util.*
 
 class AppSelectionActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityAppSelectionBinding
-    private lateinit var appAdapter: AppAdapter
-
-    private val viewModel: AppSelectionViewModel by viewModels {
-        object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return AppSelectionViewModel(AppPackageManager(applicationContext)) as T
-            }
-        }
-    }
-
-    private var searchJob: Job? = null
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityAppSelectionBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        UiUtils.applyToolbarColor(this)
-
-        setupRecyclerView()
-        setupSearchInput()
-        observeViewModel()
-    }
-
-    private fun setupToolbar() {
-        binding.btnClearBind.setOnClickListener {
-            val resultIntent = Intent().apply {
-                putExtra(EXTRA_PACKAGE_NAME, "")
-                putExtra(EXTRA_APP_NAME, "")
-            }
-            setResult(Activity.RESULT_OK, resultIntent)
-            finish()
-        }
-        val colorStr = getSharedPreferences("ui_prefs", 0).getString("toolbar_color", "#6200EE") ?: "#6200EE"
-        val tint = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(colorStr))
-        binding.btnClearBind.backgroundTintList = tint
-        binding.btnClearBind.setTextColor(android.graphics.Color.WHITE)
-    }
-
-    private fun setupRecyclerView() {
-        appAdapter = AppAdapter { appInfo ->
-            val resultIntent = Intent().apply {
-                putExtra(EXTRA_PACKAGE_NAME, appInfo.packageName)
-                putExtra(EXTRA_APP_NAME, appInfo.appName)
-            }
-            setResult(Activity.RESULT_OK, resultIntent)
-            finish()
-        }
-
-        binding.recyclerViewApps.apply {
-            layoutManager = LinearLayoutManager(this@AppSelectionActivity)
-            adapter = appAdapter
-        }
-    }
-
-    private fun setupSearchInput() {
-        binding.editTextSearchApp.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                searchJob?.cancel()
-                searchJob = viewModel.viewModelScope.launch {
-                    delay(300) // 防抖
-                    viewModel.searchApps(s?.toString() ?: "")
-                }
-            }
-        })
-    }
-
-    private fun observeViewModel() {
-        // 观察应用列表
-        viewModel.viewModelScope.launch {
-            viewModel.apps.collect { apps ->
-                appAdapter.submitList(apps)
-                binding.emptyView.visibility = if (apps.isEmpty()) View.VISIBLE else View.GONE
-            }
-        }
-
-        // 观察加载状态
-        viewModel.viewModelScope.launch {
-            viewModel.isLoading.collect { isLoading ->
-                binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-            }
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        UiUtils.applyToolbarColor(this)
-        val colorStr = getSharedPreferences("ui_prefs", 0).getString("toolbar_color", "#6200EE") ?: "#6200EE"
-        val tint2 = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(colorStr))
-        binding.btnClearBind.backgroundTintList = tint2
-        binding.btnClearBind.setTextColor(android.graphics.Color.WHITE)
-    }
 
     companion object {
         const val EXTRA_PACKAGE_NAME = "extra_package_name"
         const val EXTRA_APP_NAME = "extra_app_name"
-        const val REQUEST_CODE_SELECT_APP = 101
+    }
+
+    private lateinit var allApps: List<AppInfo>
+    private lateinit var filteredApps: MutableList<AppInfo>
+    private lateinit var adapter: AppAdapter
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var progressBar: View
+    private lateinit var emptyView: TextView
+    private lateinit var searchEditText: TextInputEditText
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_app_selection)
+
+        // 初始化视图
+        recyclerView = findViewById(R.id.recyclerViewApps)
+        progressBar = findViewById(R.id.progressBar)
+        emptyView = findViewById(R.id.emptyView)
+        searchEditText = findViewById(R.id.editTextSearchApp)
+
+        recyclerView.layoutManager = LinearLayoutManager(this)
+
+        // 设置搜索功能
+        searchEditText.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                filterApps(searchEditText.text.toString())
+                return@setOnEditorActionListener true
+            }
+            false
+        }
+
+        searchEditText.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                filterApps(s.toString())
+            }
+        })
+
+        // 加载应用列表
+        loadApps()
+    }
+
+    private fun loadApps() {
+        progressBar.visibility = View.VISIBLE
+        recyclerView.visibility = View.GONE
+
+        Thread {
+            // 获取所有已安装的应用信息
+            val packageManager = packageManager
+
+            // 处理Android 11及以上版本的包可见性问题
+            // 使用queryIntentActivities获取所有可用应用
+            val mainIntent = Intent(Intent.ACTION_MAIN, null)
+            val installedApps = ArrayList<AppInfo>()
+
+            // 获取所有应用
+            try {
+                // 先尝试获取有启动图标的应用
+                mainIntent.addCategory(Intent.CATEGORY_LAUNCHER)
+                val pkgAppsList = packageManager.queryIntentActivities(mainIntent, 0)
+
+                for (resolveInfo in pkgAppsList) {
+                    val packageName = resolveInfo.activityInfo.packageName
+                    val appLabel = resolveInfo.loadLabel(packageManager).toString()
+                    try {
+                        val icon = packageManager.getApplicationIcon(packageName)
+                        installedApps.add(
+                            AppInfo(
+                                name = appLabel,
+                                packageName = packageName,
+                                icon = icon
+                            )
+                        )
+                    } catch (e: Exception) {
+                        // 忽略无法获取图标的应用
+                    }
+                }
+
+                // 然后尝试获取已安装但没有启动图标的应用
+                val installedPackages = packageManager.getInstalledPackages(0)
+                for (packageInfo in installedPackages) {
+                    val packageName = packageInfo.packageName
+                    // 检查是否已经添加过
+                    if (installedApps.none { it.packageName == packageName }) {
+                        try {
+                            val appLabel = packageManager.getApplicationLabel(packageInfo.applicationInfo).toString()
+                            val icon = packageManager.getApplicationIcon(packageName)
+                            installedApps.add(
+                                AppInfo(
+                                    name = appLabel,
+                                    packageName = packageName,
+                                    icon = icon
+                                )
+                            )
+                        } catch (e: Exception) {
+                            // 忽略无法获取信息的应用
+                        }
+                    }
+                }
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            // 按名称排序
+            allApps = installedApps.sortedBy { it.name.lowercase(Locale.getDefault()) }
+            filteredApps = allApps.toMutableList()
+
+            runOnUiThread {
+                progressBar.visibility = View.GONE
+                if (filteredApps.isEmpty()) {
+                    emptyView.visibility = View.VISIBLE
+                    recyclerView.visibility = View.GONE
+                } else {
+                    emptyView.visibility = View.GONE
+                    recyclerView.visibility = View.VISIBLE
+
+                    adapter = AppAdapter(filteredApps) { position ->
+                        val resultIntent = Intent()
+                        resultIntent.putExtra(EXTRA_PACKAGE_NAME, filteredApps[position].packageName)
+                        resultIntent.putExtra(EXTRA_APP_NAME, filteredApps[position].name)
+                        setResult(Activity.RESULT_OK, resultIntent)
+                        finish()
+                    }
+                    recyclerView.adapter = adapter
+                }
+            }
+        }.start()
+    }
+
+    private fun filterApps(query: String) {
+        if (!::allApps.isInitialized) return
+
+        val searchText = query.lowercase(Locale.getDefault()).trim()
+
+        if (searchText.isEmpty()) {
+            filteredApps = allApps.toMutableList()
+        } else {
+            filteredApps = allApps.filter { app ->
+                app.name.lowercase(Locale.getDefault()).contains(searchText) ||
+                app.packageName.lowercase(Locale.getDefault()).contains(searchText)
+            }.toMutableList()
+        }
+
+        if (filteredApps.isEmpty()) {
+            emptyView.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
+        } else {
+            emptyView.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+        }
+
+        if (::adapter.isInitialized) {
+            adapter.updateApps(filteredApps)
+        }
+    }
+
+    data class AppInfo(
+        val name: String,
+        val packageName: String,
+        val icon: android.graphics.drawable.Drawable
+    )
+
+    private class AppAdapter(
+        private var apps: List<AppInfo>,
+        private val onItemClick: (Int) -> Unit
+    ) : RecyclerView.Adapter<AppAdapter.ViewHolder>() {
+
+        fun updateApps(newApps: List<AppInfo>) {
+            val oldApps = apps
+            apps = newApps
+            notifyDataSetChanged() // 简单起见使用notifyDataSetChanged，实际项目中可以使用DiffUtil优化
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_app, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val app = apps[position]
+            holder.textViewAppName.text = app.name
+            holder.textViewPackageName.text = app.packageName
+            holder.imageViewIcon.setImageDrawable(app.icon)
+            holder.itemView.setOnClickListener { onItemClick(position) }
+        }
+
+        override fun getItemCount(): Int = apps.size
+
+        class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val textViewAppName: TextView = view.findViewById(R.id.textViewAppName)
+            val textViewPackageName: TextView = view.findViewById(R.id.textViewPackageName)
+            val imageViewIcon: ImageView = view.findViewById(R.id.imageViewAppIcon)
+        }
     }
 }

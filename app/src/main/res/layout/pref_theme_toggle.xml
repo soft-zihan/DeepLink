@@ -26,20 +26,33 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minWidth="64dp"
-            android:text="浅色" />
+            android:text="浅色"
+            app:backgroundTint="@android:color/white"
+            android:textColor="@android:color/black"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_marginEnd="4dp"/>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDark"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minWidth="64dp"
-            android:text="深色" />
+            android:text="深色"
+            app:backgroundTint="@android:color/black"
+            android:textColor="@android:color/white"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"/>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSystem"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minWidth="64dp"
-            android:text="系统" />
+            android:text="系统"
+            style="?attr/materialButtonOutlinedStyle"
+            app:backgroundTint="?attr/colorSurface"
+            android:textColor="?attr/colorOnSurface"
+            android:layout_marginStart="4dp"/>
     </com.google.android.material.button.MaterialButtonToggleGroup>
-</LinearLayout> 
+</LinearLayout>

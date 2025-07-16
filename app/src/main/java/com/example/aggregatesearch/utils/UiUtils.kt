@@ -10,16 +10,22 @@ import androidx.core.graphics.ColorUtils
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.content.Context
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import androidx.preference.PreferenceManager
+import android.widget.Button
+import android.view.ViewGroup
+import com.google.android.material.button.MaterialButton
+import android.util.Log
 
 object UiUtils {
     private const val DEFAULT_COLOR = "#6200EE"
 
+    /**
+     * 应用顶栏颜色到Activity
+     */
     fun applyToolbarColor(activity: Activity) {
-        val colorStr = activity.getSharedPreferences("ui_prefs", 0)
-            .getString("toolbar_color", DEFAULT_COLOR) ?: DEFAULT_COLOR
-        val colorInt = Color.parseColor(colorStr)
+        val colorInt = getToolbarColor(activity)
 
         // 状态栏
         activity.window.statusBarColor = colorInt
@@ -41,6 +47,108 @@ object UiUtils {
                 decorView.systemUiVisibility = decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
             }
         }
+
+        // 应用颜色到所有按钮
+        applyColorToAllButtons(activity)
+    }
+
+    /**
+     * 应用主题颜色到活动中的所有按钮
+     * 这确保所有界面中的按钮颜色保持一致
+     */
+    private fun applyColorToAllButtons(activity: Activity) {
+        try {
+            val colorInt = getToolbarColor(activity)
+            val colorStateList = ColorStateList.valueOf(colorInt)
+
+            // 获取活动的根视图
+            val rootView = activity.findViewById<ViewGroup>(android.R.id.content)?.getChildAt(0)
+            if (rootView != null) {
+                // 递归应用颜色到所有按钮
+                applyColorToViewGroup(rootView, colorStateList, colorInt)
+            }
+        } catch (e: Exception) {
+            Log.e("UiUtils", "应用颜色到按钮时出错: ${e.message}")
+        }
+    }
+
+    /**
+     * 递归应用颜色到视图组中的所有按钮
+     */
+    private fun applyColorToViewGroup(view: View, colorStateList: ColorStateList, colorInt: Int) {
+        // 为按钮应用颜色
+        when (view) {
+            is MaterialButton -> {
+                if (!view.hasOwnTextColor()) {
+                    view.setTextColor(getContrastColor(colorInt))
+                }
+                // 只修改有背景的按钮
+                if (view.backgroundTintList != null) {
+                    view.backgroundTintList = colorStateList
+                }
+            }
+            is Button -> {
+                if (!view.hasOwnTextColor()) {
+                    view.setTextColor(getContrastColor(colorInt))
+                }
+                // 只修改有背景的按钮
+                if (view.backgroundTintList != null) {
+                    view.backgroundTintList = colorStateList
+                }
+            }
+        }
+
+        // 递归处理子视图
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                applyColorToViewGroup(view.getChildAt(i), colorStateList, colorInt)
+            }
+        }
+    }
+
+    /**
+     * 判断按钮是否已自定义文本颜色
+     */
+    private fun Button.hasOwnTextColor(): Boolean {
+        return textColors != null && textColors.isStateful
+    }
+
+    /**
+     * 根据背景色获取对比色（确保文字可读性）
+     */
+    private fun getContrastColor(backgroundColor: Int): Int {
+        return if (isColorLight(backgroundColor)) Color.BLACK else Color.WHITE
+    }
+
+    /**
+     * 获取用户设置的顶栏颜色
+     * 返回 顶栏颜色值
+     */
+    fun getToolbarColor(context: Context): Int {
+        val colorStr = context.getSharedPreferences("ui_prefs", Context.MODE_PRIVATE)
+            .getString("toolbar_color", DEFAULT_COLOR) ?: DEFAULT_COLOR
+        return try {
+            Color.parseColor(colorStr)
+        } catch (e: Exception) {
+            Color.parseColor(DEFAULT_COLOR)
+        }
+    }
+
+    /**
+     * 获取顶栏颜色字符串
+     * 返回 颜色字符串，例如"#6200EE"
+     */
+    fun getToolbarColorString(context: Context): String {
+        return context.getSharedPreferences("ui_prefs", Context.MODE_PRIVATE)
+            .getString("toolbar_color", DEFAULT_COLOR) ?: DEFAULT_COLOR
+    }
+
+    /**
+     * 判断颜色是否为浅色
+     * 返回 true如果是浅色，false如果是深色
+     */
+    fun isColorLight(color: Int): Boolean {
+        return ColorUtils.calculateLuminance(color) > 0.5
     }
 
     /**
@@ -69,4 +177,4 @@ object UiUtils {
             root.background = null
         }
     }
-} 
+}

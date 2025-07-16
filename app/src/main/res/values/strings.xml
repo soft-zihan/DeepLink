@@ -8,6 +8,14 @@
     <string name="save">保存</string>
     <string name="cancel">取消</string>
     <string name="delete">删除</string>
+    <string name="selected_app_format">已选择: %s</string>
+    <string name="settings">设置</string>
+    <!-- 添加缺少的字符串资源 -->
+    <string name="select_all">全选</string>
+    <string name="deselect_all">取消全选</string>
+    <string name="done">完成</string>
+    <string name="edit">编辑</string>
+
     <string-array name="toolbar_colors_entries">
         <item>默认</item>
         <item>红色</item>

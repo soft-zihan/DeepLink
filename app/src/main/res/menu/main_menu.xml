@@ -2,6 +2,12 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
+        android:id="@+id/menu_edit_mode"
+        android:icon="@android:drawable/ic_menu_edit"
+        android:title="编辑模式"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/menu_pin"
         android:icon="@android:drawable/btn_star_big_off"
         android:title="固定"
@@ -18,5 +24,10 @@
         android:icon="@android:drawable/ic_menu_preferences"
         android:title="设置"
         app:showAsAction="ifRoom" />
-</menu>
 
+    <item
+        android:id="@+id/menu_help"
+        android:icon="@android:drawable/ic_menu_help"
+        android:title="帮助"
+        app:showAsAction="never" />
+</menu>

@@ -4,18 +4,22 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.core.net.toUri
 import com.example.aggregatesearch.data.SearchUrl
 
 object UrlLauncher {
     
+    private const val TAG = "UrlLauncher"
+
     fun launchSearchUrls(context: Context, searchQuery: String, selectedUrls: List<SearchUrl>) {
         if (selectedUrls.isEmpty()) {
             Toast.makeText(context, "请选择至少一个搜索链接", Toast.LENGTH_SHORT).show()
             return
         }
 
+        var launchCount = 0
         for (url in selectedUrls) {
             if (!url.isEnabled && selectedUrls.size > 1) continue
 
@@ -27,9 +31,12 @@ object UrlLauncher {
                         if (launchIntent != null) {
                             launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             context.startActivity(launchIntent)
+                            launchCount++
                         } else {
-                            Toast.makeText(context, "无法启动应用: ${url.packageName}", Toast.LENGTH_SHORT).show()
+                            showError(context, "无法启动应用: ${url.name} (${url.packageName})")
                         }
+                    } else {
+                        showError(context, "未配置URL或包名: ${url.name}")
                     }
                     continue
                 }
@@ -46,24 +53,41 @@ object UrlLauncher {
                     url.urlPattern
                 }
 
-                val intent = Intent(Intent.ACTION_VIEW, formattedUrl.toUri())
+                try {
+                    val uri = formattedUrl.toUri()
+                    val intent = Intent(Intent.ACTION_VIEW, uri)
 
-                // 如果指定了包名，并且该包已安装，则使用指定的应用打开
-                if (url.packageName.isNotEmpty()) {
-                    val packageManager = context.packageManager
-                    if (isPackageInstalled(url.packageName, packageManager)) {
-                        intent.setPackage(url.packageName)
-                    } else {
-                        Toast.makeText(context, "指定的应用未安装: ${url.packageName}", Toast.LENGTH_SHORT).show()
+                    // 如果指定了包名，并且该包已安装，则使用指定的应用打开
+                    if (url.packageName.isNotEmpty()) {
+                        val packageManager = context.packageManager
+                        if (isPackageInstalled(url.packageName, packageManager)) {
+                            intent.setPackage(url.packageName)
+                        } else {
+                            showError(context, "指定的应用未安装: ${url.name} (${url.packageName})")
+                            // 尝试不指定包名继续打开
+                            val genericIntent = Intent(Intent.ACTION_VIEW, uri)
+                            genericIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(genericIntent)
+                            launchCount++
+                            continue
+                        }
                     }
-                }
 
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(intent)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                    launchCount++
+                } catch (e: Exception) {
+                    Log.e(TAG, "URL格式错误: $formattedUrl", e)
+                    showError(context, "URL格式错误: ${url.name}")
+                }
             } catch (e: Exception) {
-                Toast.makeText(context, "无法打开链接: ${url.name}", Toast.LENGTH_SHORT).show()
-                e.printStackTrace()
+                Log.e(TAG, "启动错误: ${url.name}", e)
+                showError(context, "无法打开链接: ${url.name}")
             }
+        }
+
+        if (launchCount == 0 && selectedUrls.isNotEmpty()) {
+            Toast.makeText(context, "没有成功启动任何链接，请检查配置", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -75,5 +99,10 @@ object UrlLauncher {
         } catch (e: PackageManager.NameNotFoundException) {
             false
         }
+    }
+
+    private fun showError(context: Context, message: String) {
+        Log.w(TAG, message)
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 }

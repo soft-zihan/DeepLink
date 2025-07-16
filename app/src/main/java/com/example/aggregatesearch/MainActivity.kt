@@ -1,10 +1,15 @@
 package com.example.aggregatesearch
 
+import android.app.Activity
+import android.app.Dialog
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
@@ -12,6 +17,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
@@ -19,18 +25,26 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.toColorInt
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
+import com.example.aggregatesearch.adapters.PinnedSearchAdapter
 import com.example.aggregatesearch.data.SearchUrl
 import com.example.aggregatesearch.data.UrlGroup
 import com.example.aggregatesearch.databinding.ActivityMainBinding
 import com.example.aggregatesearch.databinding.DialogAddGroupBinding
 import com.example.aggregatesearch.databinding.DialogAddUrlBinding
-import com.example.aggregatesearch.utils.AppPackageManager
+import com.example.aggregatesearch.databinding.DialogEditGroupBinding
+import com.example.aggregatesearch.databinding.DialogEditUrlBinding
+import com.example.aggregatesearch.utils.ColorPickerDialog
+import com.example.aggregatesearch.utils.IconLoader
+import com.example.aggregatesearch.utils.PinnedSearchManager
 import com.example.aggregatesearch.utils.SearchHistoryManager
 import com.example.aggregatesearch.utils.UiUtils
-import com.example.aggregatesearch.utils.PinnedSearchManager
+import com.example.aggregatesearch.utils.AppPreferences
+import com.google.android.material.chip.Chip
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -38,8 +52,6 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
-import android.content.res.ColorStateList
-import android.graphics.Color
 
 class MainActivity : AppCompatActivity() {
 
@@ -48,6 +60,7 @@ class MainActivity : AppCompatActivity() {
         SearchViewModelFactory((application as SearchApplication).repository)
     }
     private lateinit var groupedAdapter: GroupedSearchUrlAdapter
+    private lateinit var pinnedAdapter: PinnedSearchAdapter
     private lateinit var itemTouchHelper: ItemTouchHelper
 
     // 搜索历史管理
@@ -56,65 +69,77 @@ class MainActivity : AppCompatActivity() {
     // 常搜（固定）管理
     private lateinit var pinnedSearchManager: PinnedSearchManager
 
+    // 应用设置管理
+    private lateinit var appPreferences: AppPreferences
+
     // 全选按钮状态
     private var isAllSelected: Boolean = false
 
-    // 选择应用结果回调相关
-    private var currentPackageNameEditText: android.widget.EditText? = null
-    private var currentSelectedAppNameTextView: android.widget.TextView? = null
+    private var currentPackageNameEditText: EditText? = null
+    private var currentSelectedAppNameTextView: TextView? = null
     private var onAppSelectedGlobal: ((String, String) -> Unit)? = null
-    private lateinit var appSelectionResultLauncher: androidx.activity.result.ActivityResultLauncher<android.content.Intent>
+    private lateinit var appSelectionResultLauncher: androidx.activity.result.ActivityResultLauncher<Intent>
 
-    private val createBackupFile = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        uri?.let { exportBackup(it) }
-    }
+    private var isPinnedEditMode = false
 
-    private val openRestoreFile = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { importBackup(it) }
-    }
-
-    private var pinnedEditMode = false
+    // 编辑模式标志
+    private var isEditMode = false
+    private var menuEditMode: MenuItem? = null
+    private var menuPlus: MenuItem? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        try {
+            binding = ActivityMainBinding.inflate(layoutInflater)
+            setContentView(binding.root)
 
-        // 应用顶栏颜色
-        UiUtils.applyToolbarColor(this)
+            // 必须在其他UI初始化之前设置好 Toolbar
+            setSupportActionBar(binding.toolbar)
 
-        // 应用壁纸
-        UiUtils.applyWallpaper(binding.root, this)
+            // 应用顶栏颜色
+            UiUtils.applyToolbarColor(this)
 
-        // 初始化搜索历史管理
-        searchHistoryManager = SearchHistoryManager(this)
+            UiUtils.applyWallpaper(binding.root, this)
 
-        // 初始化常搜管理
-        pinnedSearchManager = PinnedSearchManager(this)
+            // 初始化搜索历史管理
+            searchHistoryManager = SearchHistoryManager(this)
 
-        // 注册应用选择结果回调
-        appSelectionResultLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == android.app.Activity.RESULT_OK) {
-                val data = result.data
-                val packageName = data?.getStringExtra(com.example.aggregatesearch.activities.AppSelectionActivity.EXTRA_PACKAGE_NAME) ?: ""
-                val appName = data?.getStringExtra(com.example.aggregatesearch.activities.AppSelectionActivity.EXTRA_APP_NAME) ?: ""
-                onAppSelectedGlobal?.invoke(packageName, appName)
+            // 初始化常搜管理
+            pinnedSearchManager = PinnedSearchManager(this)
+
+            // 初始化应用设置管理
+            appPreferences = AppPreferences(this)
+
+            // 注册应用选择结果回调
+            appSelectionResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                if (result.resultCode == RESULT_OK) {
+                    val data = result.data
+                    val packageName = data?.getStringExtra(com.example.aggregatesearch.activities.AppSelectionActivity.EXTRA_PACKAGE_NAME) ?: ""
+                    val appName = data?.getStringExtra(com.example.aggregatesearch.activities.AppSelectionActivity.EXTRA_APP_NAME) ?: ""
+                    onAppSelectedGlobal?.invoke(packageName, appName)
+                }
             }
-        }
 
-        setupRecyclerView()
-        setupSearchFunction()
+            setupRecyclerView()
+            setupSearchFunction()
+            setupPinnedSearches()
 
-        lifecycleScope.launch {
-            searchViewModel.groupedItems.collectLatest {
-                groupedAdapter.submitList(it)
+            lifecycleScope.launch {
+                searchViewModel.groupedItems.collectLatest {
+                    groupedAdapter.submitList(it)
+                }
             }
+
+            setupSelectAllButton()
+
+            refreshSearchHistorySuggestions()
+            refreshPinnedSearches()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error in onCreate", e)
+            Toast.makeText(this, "发生错误，请查看日志: ${e.message}", Toast.LENGTH_LONG).show()
+            // 出现严重错误时，可以考虑关闭应用
+            // finish()
         }
-
-        setupSelectAllButton()
-
-        refreshSearchHistorySuggestions()
-        refreshPinnedChips()
     }
 
     override fun onResume() {
@@ -122,26 +147,34 @@ class MainActivity : AppCompatActivity() {
         UiUtils.applyToolbarColor(this)
         // 同步搜索按钮颜色
         val colorStr = getSharedPreferences("ui_prefs", MODE_PRIVATE).getString("toolbar_color", "#6200EE") ?: "#6200EE"
-        binding.buttonSearch.backgroundTintList = ColorStateList.valueOf(Color.parseColor(colorStr))
+        binding.buttonSearch.backgroundTintList = ColorStateList.valueOf(colorStr.toColorInt())
 
         UiUtils.applyWallpaper(binding.root, this)
 
         refreshSearchHistorySuggestions()
-        refreshPinnedChips()
+        refreshPinnedSearches()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
+        menuEditMode = menu.findItem(R.id.menu_edit_mode)
+        menuPlus = menu.findItem(R.id.menu_plus)
         return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.menu_edit_mode -> {
+                // 切换编辑模式
+                isEditMode = !isEditMode
+                updateEditModeUI()
+                true
+            }
             R.id.menu_pin -> {
                 val query = binding.editTextSearch.text.toString().trim()
                 if (query.isNotEmpty()) {
                     pinnedSearchManager.addPin(query)
-                    refreshPinnedChips()
+                    refreshPinnedSearches()
                     Toast.makeText(this, "已固定", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(this, "请输入内容后再固定", Toast.LENGTH_SHORT).show()
@@ -151,7 +184,7 @@ class MainActivity : AppCompatActivity() {
             R.id.menu_plus -> {
                 // 二选一弹窗
                 AlertDialog.Builder(this)
-                    .setTitle("请选择要添加的内容")
+                    .setTitle("请选择要添的内容")
                     .setItems(arrayOf("创建分组", "创建链接")) { _, which ->
                         if (which == 0) {
                             showAddGroupDialog()
@@ -165,6 +198,11 @@ class MainActivity : AppCompatActivity() {
             R.id.menu_settings -> {
                 // 打开设置界面
                 startActivity(Intent(this, SettingsActivity::class.java))
+                true
+            }
+            R.id.menu_help -> {
+                // 显示使用说明
+                showHelpDialog()
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -211,7 +249,7 @@ class MainActivity : AppCompatActivity() {
         rootObject.put("groups", groupsArray)
 
         val urlsArray = JSONArray()
-        searchViewModel.allUrls.value?.forEach { url ->
+        searchViewModel.allUrls.value.forEach { url ->
             val urlObject = JSONObject().apply {
                 put("id", url.id)
                 put("name", url.name)
@@ -221,6 +259,10 @@ class MainActivity : AppCompatActivity() {
                 put("groupId", url.groupId)
                 // 添加包名到备份数据中
                 put("packageName", url.packageName)
+                // 新增：备份文字图标相关设置
+                put("useTextIcon", url.useTextIcon)
+                put("iconText", url.iconText)
+                put("iconBackgroundColor", url.iconBackgroundColor)
             }
             urlsArray.put(urlObject)
         }
@@ -252,17 +294,17 @@ class MainActivity : AppCompatActivity() {
             val urlObject = urlsArray.getJSONObject(i)
             urls.add(
                 SearchUrl(
-                    id = urlObject.getInt("id"),
+                    id = urlObject.getLong("id"),
                     name = urlObject.getString("name"),
                     urlPattern = urlObject.getString("urlPattern"),
                     isEnabled = urlObject.getBoolean("isEnabled"),
                     orderIndex = urlObject.getInt("orderIndex"),
                     groupId = urlObject.getLong("groupId"),
                     // 尝试从备份数据中恢复包名，如果不存在则使用空字符串
-                    packageName = if (urlObject.has("packageName"))
-                        urlObject.getString("packageName")
-                    else
-                        ""
+                    packageName = urlObject.optString("packageName", ""),
+                    useTextIcon = urlObject.optBoolean("useTextIcon", false),
+                    iconText = urlObject.optString("iconText", ""),
+                    iconBackgroundColor = urlObject.optInt("iconBackgroundColor", 0xFF2196F3.toInt())
                 )
             )
         }
@@ -288,7 +330,7 @@ class MainActivity : AppCompatActivity() {
                     // 无论是否输入关键词，都尝试打开链接
                     UrlLauncher.launchSearchUrls(this, searchQuery, listOf(item))
                 } else if (item is UrlGroup) {
-                    // 当点击分组时，获取该分组内所有用的链接并打开
+                    // 当点击分组时，获取该分组内所有已勾选的链接并打开
                     val searchQuery = binding.editTextSearch.text.toString().trim()
                     val enabledUrlsInGroup = searchViewModel.getUrlsByGroupId(item.id).filter { it.isEnabled }
                     if (enabledUrlsInGroup.isNotEmpty()) {
@@ -299,8 +341,8 @@ class MainActivity : AppCompatActivity() {
                 }
             },
             onDeleteItemClicked = { item ->
-                if (item is SearchUrl) showDeleteConfirmationDialog(item)
-                else if (item is UrlGroup) showDeleteGroupDialog(item)
+                if (item is SearchUrl) showDeleteConfirmationDialog(item, this)
+                else if (item is UrlGroup) showDeleteGroupDialog(item, this)
             },
             onEditItemClicked = { item ->
                 // 新增编辑功能
@@ -311,7 +353,8 @@ class MainActivity : AppCompatActivity() {
                 showAddUrlDialog(group)
             },
             onUrlCheckChanged = { searchUrl, isChecked ->
-                searchViewModel.updateUrl(searchUrl.copy(isEnabled = isChecked))
+                // 使用新方法来处理链接状态变化
+                searchViewModel.onUrlCheckChanged(searchUrl, isChecked)
             },
             onGroupCheckChanged = { group, isChecked ->
                 searchViewModel.updateGroupSelected(group, isChecked)
@@ -329,13 +372,20 @@ class MainActivity : AppCompatActivity() {
         )
         binding.recyclerViewUrls.adapter = groupedAdapter
 
+        // 监听分组状态变化事件
+        searchViewModel.groupCheckEvents.observe(this) { (group, isChecked) ->
+            // 通知适配器更新分组状态
+            groupedAdapter.updateGroupCheckedState(group, isChecked)
+        }
+
         val callback = object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP or ItemTouchHelper.DOWN,
-             0
+            0
         ) {
             private var dragFrom: Int = -1
             private var dragTo: Int = -1
-            
+            private var draggingGroupId: Long? = null // 跟踪当前正在拖动的分组ID
+
             override fun onMove(
                 recyclerView: RecyclerView,
                 viewHolder: RecyclerView.ViewHolder,
@@ -343,17 +393,37 @@ class MainActivity : AppCompatActivity() {
             ): Boolean {
                 val fromPosition = viewHolder.bindingAdapterPosition
                 val toPosition = target.bindingAdapterPosition
-                
+
                 if (fromPosition != RecyclerView.NO_POSITION && toPosition != RecyclerView.NO_POSITION) {
+                    val itemFrom = groupedAdapter.getItemAt(fromPosition)
+                    val itemTo = groupedAdapter.getItemAt(toPosition)
+
                     // 追踪开始的拖动位置
                     if (dragFrom == -1) {
                         dragFrom = fromPosition
+                        if (itemFrom is UrlGroup) {
+                            draggingGroupId = itemFrom.id
+                        } else if (itemFrom is SearchUrl) {
+                            draggingGroupId = itemFrom.groupId
+                        }
                     }
+
                     // 更新当前拖动位置
                     dragTo = toPosition
-                    
+
                     // 移动视图显示
                     groupedAdapter.notifyItemMoved(fromPosition, toPosition)
+
+                    // 如果是分组，同时移动分组下的所有图标容器
+                    if (draggingGroupId != null && itemFrom is UrlGroup && itemTo is UrlGroup) {
+                        // 这里需要确保一起移动，保持整体性
+                        // 因为每个分组后面紧跟一个图标容器，所以同时移动下一个位置
+                        if (fromPosition + 1 < groupedAdapter.itemCount &&
+                            toPosition + 1 < groupedAdapter.itemCount) {
+                            groupedAdapter.notifyItemMoved(fromPosition + 1, toPosition + 1)
+                        }
+                    }
+
                     return true
                 }
                 return false
@@ -362,23 +432,88 @@ class MainActivity : AppCompatActivity() {
             // 拖放完成时处理实际数据更新
             override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
                 super.clearView(recyclerView, viewHolder)
-                
+
                 // 如果我们有有效的拖动操作
                 if (dragFrom != -1 && dragTo != -1 && dragFrom != dragTo) {
-                    // 执行实际的数据移动
-                    handleItemMove(dragFrom, dragTo)
+                    // 执行实际的数据移动，使用当前列表中的实际位置
+                    val adapter = recyclerView.adapter as GroupedSearchUrlAdapter
+                    val fromItem = adapter.getItemAt(dragFrom)
+                    val toItem = adapter.getItemAt(dragTo)
+
+                    // 根据实际的项目类型执行相应的数据更新
+                    if (fromItem is UrlGroup && toItem is UrlGroup) {
+                        // 使用ViewModel中的数据而非adapter中的数据
+                        val groups = searchViewModel.allGroups.value?.toMutableList() ?: return
+                        val fromGroup = groups.find { it.id == (fromItem as UrlGroup).id }
+                        val toGroup = groups.find { it.id == (toItem as UrlGroup).id }
+                        if (fromGroup != null && toGroup != null) {
+                            // 获取正确的顺序索引
+                            val fromIndex = groups.indexOf(fromGroup)
+                            val toIndex = groups.indexOf(toGroup)
+                            if (fromIndex != -1 && toIndex != -1) {
+                                // 移动组并重新计算索引
+                                val movedGroup = groups.removeAt(fromIndex)
+                                groups.add(if (toIndex > fromIndex) toIndex - 1 else toIndex, movedGroup)
+
+                                // 更新所有组的顺序索引
+                                val updatedGroups = groups.mapIndexed { index, group ->
+                                    group.copy(orderIndex = index)
+                                }
+
+                                // 提交更新
+                                searchViewModel.updateGroupsOrder(updatedGroups)
+                            }
+                        }
+                    } else if (fromItem is SearchUrl && toItem is SearchUrl && fromItem.groupId == toItem.groupId) {
+                        val urls = searchViewModel.getUrlsByGroupId(fromItem.groupId)
+                        val fromUrl = urls.find { it.id == fromItem.id }
+                        val toUrl = urls.find { it.id == toItem.id }
+                        if (fromUrl != null && toUrl != null) {
+                            val fromIndex = urls.indexOf(fromUrl)
+                            val toIndex = urls.indexOf(toUrl)
+                            if (fromIndex != -1 && toIndex != -1) {
+                                val reorderedUrls = urls.toMutableList()
+                                val movedUrl = reorderedUrls.removeAt(fromIndex)
+                                reorderedUrls.add(if (toIndex > fromIndex) toIndex - 1 else toIndex, movedUrl)
+
+                                // 更新顺序索引
+                                val updatedUrls = reorderedUrls.mapIndexed { index, url ->
+                                    url.copy(orderIndex = index)
+                                }
+
+                                // 提交更新
+                                searchViewModel.updateUrls(updatedUrls)
+                            }
+                        }
+                    }
                 }
-                
+
                 // 重置拖放状态
                 dragFrom = -1
                 dragTo = -1
+                draggingGroupId = null
             }
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
 
             override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
-                val dragFlags = ItemTouchHelper.UP or ItemTouchHelper.DOWN
-                return makeMovementFlags(dragFlags, 0)
+                val position = viewHolder.bindingAdapterPosition
+                if (position == RecyclerView.NO_POSITION) return 0
+
+                val item = groupedAdapter.getItemAt(position)
+
+                if (item is UrlGroup) {
+                    // 分组可以上下拖动
+                    return makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
+                } else if (item is SearchUrl) {
+                    // 链接可以上下移动
+                    val urls = groupedAdapter.getItems().filterIsInstance<SearchUrl>().filter { it.groupId == item.groupId }
+                    // 只有当分组中有多个链接时才允许拖动
+                    return if (urls.size > 1) makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
+                    else 0
+                }
+
+                return 0 // 其他项目不能拖动
             }
 
             override fun canDropOver(
@@ -394,21 +529,51 @@ class MainActivity : AppCompatActivity() {
                 val itemTo = groupedAdapter.getItemAt(toPosition)
 
                 return when {
-                    // 组可以移动到组
+                    // 组只能移动到组
                     itemFrom is UrlGroup && itemTo is UrlGroup -> true
-                    // 链接可以在同一组内移动
+                    // 链接只能在同一组内移动
                     itemFrom is SearchUrl && itemTo is SearchUrl -> {
                         itemFrom.groupId == itemTo.groupId
                     }
-                    // 链接可以移动到组
-                    itemFrom is SearchUrl && itemTo is UrlGroup -> true
-                    // 其他情况不允许移动
+                    // 链接不能移动到组，组不能移动到链接
                     else -> false
                 }
             }
+
+            override fun isLongPressDragEnabled(): Boolean = false
+
+            // 禁用滑动删除
+            override fun isItemViewSwipeEnabled(): Boolean = false
         }
         itemTouchHelper = ItemTouchHelper(callback)
         itemTouchHelper.attachToRecyclerView(binding.recyclerViewUrls)
+
+        // 将ItemTouchHelper设置为标签，以便在适配器中被找到
+        binding.recyclerViewUrls.setTag(R.id.item_touch_helper, itemTouchHelper)
+    }
+
+    private fun setupPinnedSearches() {
+        binding.recyclerViewPinned.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this, RecyclerView.HORIZONTAL, false)
+        pinnedAdapter = PinnedSearchAdapter(
+            pinnedWords = pinnedSearchManager.getPinned().toMutableList(),
+            onWordClick = { word ->
+                binding.editTextSearch.setText(word)
+                performSearch()
+            },
+            onDeleteClick = { word ->
+                pinnedSearchManager.removePin(word)
+                pinnedAdapter.removeWord(word)
+                Toast.makeText(this, "已删除: $word", Toast.LENGTH_SHORT).show()
+                // 删除后退出编辑模式
+                if (pinnedAdapter.getEditMode()) {
+                    isPinnedEditMode = false
+                    pinnedAdapter.setEditMode(false)
+                }
+                refreshPinnedSearches() // 刷新以更新可见性
+            }
+        )
+        binding.recyclerViewPinned.adapter = pinnedAdapter
+        refreshPinnedSearches()
     }
 
     private fun handleItemMove(fromPosition: Int, toPosition: Int) {
@@ -448,7 +613,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             itemFrom is SearchUrl && itemTo is UrlGroup -> {
-                // 移动到分组顶部
                 searchViewModel.moveUrlToGroup(itemFrom, itemTo.id, 0)
             }
         }
@@ -488,7 +652,7 @@ class MainActivity : AppCompatActivity() {
             selectedPackageName = packageName
             currentPackageNameEditText?.setText(packageName)
             if (packageName.isNotEmpty()) {
-                currentSelectedAppNameTextView?.text = "已选择: $appName"
+                currentSelectedAppNameTextView?.text = getString(R.string.selected_app_format, appName)
                 currentSelectedAppNameTextView?.visibility = View.VISIBLE
             } else {
                 currentSelectedAppNameTextView?.visibility = View.GONE
@@ -497,6 +661,15 @@ class MainActivity : AppCompatActivity() {
 
         dialogBinding.btnSelectApp.setOnClickListener {
             appSelectionResultLauncher.launch(Intent(this, com.example.aggregatesearch.activities.AppSelectionActivity::class.java))
+        }
+
+        // 添加取消绑定按钮的功能
+        dialogBinding.btnCancelAppBinding.setOnClickListener {
+            // 清空应用绑定信息
+            selectedPackageName = ""
+            dialogBinding.editTextPackageName.setText("")
+            dialogBinding.textViewSelectedAppName.visibility = View.GONE
+            Toast.makeText(this, "已取消应用绑定", Toast.LENGTH_SHORT).show()
         }
 
         val dialog = AlertDialog.Builder(this)
@@ -523,6 +696,11 @@ class MainActivity : AppCompatActivity() {
                 )
                 searchViewModel.insert(searchUrl)
                 dialog.dismiss()
+                // 如果在编辑模式下添加了链接，则退出编辑模式
+                if (isEditMode) {
+                    isEditMode = false
+                    updateEditModeUI()
+                }
             } else {
                 Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show()
             }
@@ -546,82 +724,35 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun showDeleteConfirmationDialog(searchUrl: SearchUrl) {
-        AlertDialog.Builder(this)
+    private fun showDeleteConfirmationDialog(searchUrl: SearchUrl, context: Context, editDialog: Dialog? = null) {
+        AlertDialog.Builder(context)
             .setTitle("删除确认")
             .setMessage("确定要删除 ${searchUrl.name} 吗？")
             .setPositiveButton("删除") { _, _ ->
                 searchViewModel.delete(searchUrl)
+                editDialog?.dismiss()
+                // 强制刷新Activity以确保UI更新
+                recreate()
             }
             .setNegativeButton("取消", null)
             .show()
     }
 
-    private fun showDeleteGroupDialog(group: UrlGroup) {
-        AlertDialog.Builder(this)
+    private fun showDeleteGroupDialog(group: UrlGroup, context: Context) {
+        AlertDialog.Builder(context)
             .setTitle("删除确认")
-            .setMessage("确定要删除分组 ${group.name} 及其包含的所有链接吗？")
+            .setMessage("确定要删除分组 ${group.name} 其包含的所有链接？")
             .setPositiveButton("删除") { _, _ ->
                 searchViewModel.deleteGroup(group)
+                // 强制刷新Activity以确保UI更新
+                recreate()
             }
             .setNegativeButton("取消", null)
             .show()
     }
 
     private fun showEditUrlDialog(searchUrl: SearchUrl) {
-        val dialogBinding = com.example.aggregatesearch.databinding.DialogEditUrlBinding.inflate(LayoutInflater.from(this))
-
-        // 预填充现有值
-        dialogBinding.editTextUrlName.setText(searchUrl.name as CharSequence)
-        dialogBinding.editTextUrlPattern.setText(searchUrl.urlPattern as CharSequence)
-
-        // 预填充包名，如果存在
-        var selectedPackageName = searchUrl.packageName
-        if (selectedPackageName.isNotEmpty()) {
-            dialogBinding.editTextPackageName.setText(selectedPackageName as CharSequence)
-
-            // 获取应用名称
-            val appPackageManager = AppPackageManager(this)
-            val appName = appPackageManager.getAppNameByPackage(selectedPackageName)
-            if (appName != null) {
-                dialogBinding.textViewSelectedAppName.text = "已选择: $appName"
-                dialogBinding.textViewSelectedAppName.visibility = View.VISIBLE
-            }
-        }
-
-        // 设置选择应用按钮点击事件
-        currentPackageNameEditText = dialogBinding.editTextPackageName
-        currentSelectedAppNameTextView = dialogBinding.textViewSelectedAppName
-        onAppSelectedGlobal = { packageName: String, appName: String ->
-            selectedPackageName = packageName
-            currentPackageNameEditText?.setText(packageName)
-            if (packageName.isNotEmpty()) {
-                currentSelectedAppNameTextView?.text = "已选择: $appName"
-                currentSelectedAppNameTextView?.visibility = View.VISIBLE
-            } else {
-                currentSelectedAppNameTextView?.visibility = View.GONE
-            }
-        }
-
-        dialogBinding.btnSelectApp.setOnClickListener {
-            appSelectionResultLauncher.launch(Intent(this, com.example.aggregatesearch.activities.AppSelectionActivity::class.java))
-        }
-
-        // 同步按钮颜色
-        val colorStr = getSharedPreferences("ui_prefs", MODE_PRIVATE).getString("toolbar_color", "#6200EE") ?: "#6200EE"
-        val tint = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(colorStr))
-        dialogBinding.btnSelectApp.backgroundTintList = tint
-        dialogBinding.btnSelectApp.setTextColor(android.graphics.Color.WHITE)
-        dialogBinding.btnTestUrl.backgroundTintList = tint
-        dialogBinding.btnTestUrl.setTextColor(android.graphics.Color.WHITE)
-
-        dialogBinding.btnTestUrl.setOnClickListener {
-            val name = dialogBinding.editTextUrlName.text.toString().trim().ifEmpty { "测试" }
-            val pattern = dialogBinding.editTextUrlPattern.text.toString().trim()
-            val tempUrl = searchUrl.copy(name = name, urlPattern = pattern, packageName = selectedPackageName)
-            UrlLauncher.launchSearchUrls(this, binding.editTextSearch.text.toString().trim(), listOf(tempUrl))
-        }
-
+        val dialogBinding = DialogEditUrlBinding.inflate(LayoutInflater.from(this))
         val dialog = AlertDialog.Builder(this)
             .setTitle("编辑搜索链接")
             .setView(dialogBinding.root)
@@ -629,20 +760,180 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton("取消", null)
             .create()
 
+        // 获取并应用主题颜色
+        val colorStr = getSharedPreferences("ui_prefs", MODE_PRIVATE).getString("toolbar_color", "#6200EE") ?: "#6200EE"
+        val color = colorStr.toColorInt()
+        val colorStateList = ColorStateList.valueOf(color)
+
+        dialogBinding.btnTestUrl.backgroundTintList = colorStateList
+        dialogBinding.buttonDeleteUrlDialog.backgroundTintList = colorStateList
+        dialogBinding.btnSelectApp.setTextColor(color)
+        dialogBinding.btnCancelAppBinding.setTextColor(color)
+
+
+        // 预填充现有值
+        dialogBinding.editTextUrlName.setText(searchUrl.name)
+        dialogBinding.editTextUrlPattern.setText(searchUrl.urlPattern)
+
+        // 预填充文字图标设置
+        dialogBinding.radioButtonTextIcon.isChecked = searchUrl.useTextIcon
+        dialogBinding.radioButtonAutoIcon.isChecked = !searchUrl.useTextIcon
+        dialogBinding.layoutTextIcon.visibility = if (searchUrl.useTextIcon) View.VISIBLE else View.GONE
+
+        // 预填充图标文本，如果为空则使用链接名称
+        val iconText = if (searchUrl.iconText.isNotBlank()) searchUrl.iconText else searchUrl.name
+        dialogBinding.editTextIconText.setText(iconText)
+
+        // 设置图标背景颜色
+        dialogBinding.viewIconBackgroundColor.setBackgroundColor(searchUrl.iconBackgroundColor)
+
+        // 设置图标预览
+        updateIconPreview(dialogBinding, searchUrl)
+
+        // 设置图标类型切换监听
+        dialogBinding.radioGroupIconType.setOnCheckedChangeListener { _, checkedId ->
+            val useTextIcon = checkedId == R.id.radioButtonTextIcon
+            dialogBinding.layoutTextIcon.visibility = if (useTextIcon) View.VISIBLE else View.GONE
+            updateIconPreview(dialogBinding, searchUrl.copy(useTextIcon = useTextIcon))
+        }
+
+        // 为刷新图标按钮添加点击事件
+        dialogBinding.btnRefreshIcon.setOnClickListener {
+            if (dialogBinding.radioButtonAutoIcon.isChecked) {
+                // 清除缓存的图标（如果有缓存机制）
+                Toast.makeText(this, "正在刷新图标...", Toast.LENGTH_SHORT).show()
+                val tempUrl = searchUrl.copy()
+                tempUrl.forceRefresh = true
+                updateIconPreview(dialogBinding, tempUrl)
+            }
+        }
+
+        // 文字图标文本变更监听
+        dialogBinding.editTextIconText.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                if (dialogBinding.radioButtonTextIcon.isChecked) {
+                    val currentBgColor = (dialogBinding.viewIconBackgroundColor.background as? ColorDrawable)?.color ?: searchUrl.iconBackgroundColor
+                    updateIconPreview(dialogBinding, searchUrl.copy(iconText = s.toString(), iconBackgroundColor = currentBgColor))
+                }
+            }
+        })
+
+        // 颜色选择功能
+        dialogBinding.viewIconBackgroundColor.setOnClickListener {
+            try {
+                com.example.aggregatesearch.utils.ColorPickerDialog.Builder(this)
+                    .setTitle("选择颜色")
+                    .setColorShape(true)
+                    .setDefaultColor(searchUrl.iconBackgroundColor)
+                    .setColorListener { color, _ ->
+                        dialogBinding.viewIconBackgroundColor.setBackgroundColor(color)
+                        if (dialogBinding.radioButtonTextIcon.isChecked) {
+                            val currentIconText = dialogBinding.editTextIconText.text.toString()
+                            updateIconPreview(dialogBinding, searchUrl.copy(iconText = currentIconText, iconBackgroundColor = color))
+                        }
+                    }
+                    .show()
+            } catch (e: Exception) {
+                Toast.makeText(this, "打开颜色选择器失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("MainActivity", "Error showing color picker", e)
+            }
+        }
+
+        // 预填包名
+        var selectedPackageName = searchUrl.packageName
+        dialogBinding.editTextPackageName.setText(selectedPackageName)
+
+        // 显示已选择的应用名称(如果有)
+        if (selectedPackageName.isNotEmpty()) {
+            try {
+                val packageInfo = packageManager.getApplicationInfo(selectedPackageName, 0)
+                val appName = packageManager.getApplicationLabel(packageInfo).toString()
+                dialogBinding.textViewSelectedAppName.text = getString(R.string.selected_app_format, appName)
+                dialogBinding.textViewSelectedAppName.visibility = View.VISIBLE
+                dialogBinding.btnCancelAppBinding.visibility = View.VISIBLE
+            } catch (e: Exception) {
+                dialogBinding.textViewSelectedAppName.visibility = View.GONE
+                dialogBinding.btnCancelAppBinding.visibility = View.GONE
+            }
+        } else {
+            dialogBinding.textViewSelectedAppName.visibility = View.GONE
+            dialogBinding.btnCancelAppBinding.visibility = View.GONE
+        }
+
+        // 设置选择应用按钮点击事件
+        currentPackageNameEditText = dialogBinding.editTextPackageName
+        currentSelectedAppNameTextView = dialogBinding.textViewSelectedAppName
+        onAppSelectedGlobal = { packageName, appName ->
+            selectedPackageName = packageName
+            currentPackageNameEditText?.setText(packageName)
+            if (packageName.isNotEmpty()) {
+                currentSelectedAppNameTextView?.text = getString(R.string.selected_app_format, appName)
+                currentSelectedAppNameTextView?.visibility = View.VISIBLE
+                dialogBinding.btnCancelAppBinding.visibility = View.VISIBLE
+            } else {
+                currentSelectedAppNameTextView?.visibility = View.GONE
+                dialogBinding.btnCancelAppBinding.visibility = View.GONE
+            }
+        }
+
+        dialogBinding.btnSelectApp.setOnClickListener {
+            appSelectionResultLauncher.launch(Intent(this, com.example.aggregatesearch.activities.AppSelectionActivity::class.java))
+        }
+
+        // 添加取消绑定按钮的功能
+        dialogBinding.btnCancelAppBinding.setOnClickListener {
+            // 清空应用绑定信息
+            selectedPackageName = ""
+            dialogBinding.editTextPackageName.setText("")
+            dialogBinding.textViewSelectedAppName.text = ""
+            dialogBinding.textViewSelectedAppName.visibility = View.GONE
+            dialogBinding.btnCancelAppBinding.visibility = View.GONE
+            Toast.makeText(this, "已清除", Toast.LENGTH_SHORT).show()
+        }
+
+        // 测试链接按钮
+        dialogBinding.btnTestUrl.setOnClickListener {
+            val name = dialogBinding.editTextUrlName.text.toString().trim().ifEmpty { "测试" }
+            val pattern = dialogBinding.editTextUrlPattern.text.toString().trim()
+            val tempUrl = searchUrl.copy(name = name, urlPattern = pattern, packageName = selectedPackageName)
+            UrlLauncher.launchSearchUrls(this, binding.editTextSearch.text.toString().trim(), listOf(tempUrl))
+        }
+
+        // 删除按钮
+        dialogBinding.buttonDeleteUrlDialog.setOnClickListener {
+            showDeleteConfirmationDialog(searchUrl, this, dialog)
+        }
+
         dialog.show()
 
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val name = dialogBinding.editTextUrlName.text.toString().trim()
             val pattern = dialogBinding.editTextUrlPattern.text.toString().trim()
+            val useTextIcon = dialogBinding.radioButtonTextIcon.isChecked
+            var iconText = dialogBinding.editTextIconText.text.toString().trim()
+
+            // 确保当使用文字图标时，始终有有效的文字内容
+            if (useTextIcon && iconText.isEmpty()) {
+                iconText = name.take(1) // 使用名称的第一个字符作为默认值
+            }
+
+            val bgColor = (dialogBinding.viewIconBackgroundColor.background as? ColorDrawable)?.color ?: searchUrl.iconBackgroundColor
 
             if (name.isNotEmpty()) {
                 val updatedUrl = searchUrl.copy(
                     name = name,
                     urlPattern = pattern,
-                    packageName = selectedPackageName
+                    packageName = selectedPackageName,
+                    useTextIcon = useTextIcon,
+                    iconText = iconText,
+                    iconBackgroundColor = bgColor
                 )
                 searchViewModel.updateUrl(updatedUrl)
                 dialog.dismiss()
+                // 强制刷新Activity以确保UI更新
+                recreate()
             } else {
                 Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show()
             }
@@ -650,10 +941,43 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showEditGroupDialog(group: UrlGroup) {
-        val dialogBinding = com.example.aggregatesearch.databinding.DialogEditGroupBinding.inflate(LayoutInflater.from(this))
+        val dialogBinding = DialogEditGroupBinding.inflate(LayoutInflater.from(this))
+        var selectedColor: String? = group.color
 
-        // 预填充现有值
+        // 获取并应用主题颜色
+        val colorStr = getSharedPreferences("ui_prefs", MODE_PRIVATE).getString("toolbar_color", "#6200EE") ?: "#6200EE"
+        val color = colorStr.toColorInt()
+        val colorStateList = ColorStateList.valueOf(color)
+        dialogBinding.buttonSelectGroupColor.backgroundTintList = colorStateList
+        dialogBinding.buttonDeleteGroupDialog.backgroundTintList = colorStateList
+        dialogBinding.buttonSelectGroupColor.setTextColor(Color.WHITE)
+        dialogBinding.buttonDeleteGroupDialog.setTextColor(Color.WHITE)
+
         dialogBinding.editTextGroupName.setText(group.name)
+        selectedColor?.let {
+            dialogBinding.viewSelectedGroupColor.setBackgroundColor(it.toColorInt())
+        }
+
+        dialogBinding.buttonSelectGroupColor.setOnClickListener {
+            try {
+                com.example.aggregatesearch.utils.ColorPickerDialog.Builder(this)
+                    .setTitle("选择分组颜色")
+                    .setColorShape(false)
+                    .setDefaultColor(selectedColor ?: "#FFFFFF")
+                    .setColorListener { color, hexColor ->
+                        selectedColor = hexColor
+                        dialogBinding.viewSelectedGroupColor.setBackgroundColor(color)
+                    }
+                    .show()
+            } catch (e: Exception) {
+                Toast.makeText(this, "打开颜色选择器失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("MainActivity", "Error showing color picker", e)
+            }
+        }
+
+        dialogBinding.buttonDeleteGroupDialog.setOnClickListener {
+            showDeleteGroupDialog(group, this)
+        }
 
         val dialog = AlertDialog.Builder(this)
             .setTitle("编辑分组")
@@ -668,52 +992,122 @@ class MainActivity : AppCompatActivity() {
             val name = dialogBinding.editTextGroupName.text.toString().trim()
 
             if (name.isNotEmpty()) {
-                val updatedGroup = group.copy(name = name)
+                val updatedGroup = group.copy(name = name, color = selectedColor)
                 searchViewModel.updateGroup(updatedGroup)
                 dialog.dismiss()
+                // 强制刷新Activity以确保UI更新
+                recreate()
             } else {
                 Toast.makeText(this, "分组名称不能为空", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
+
+    // 为编辑对话框更新图标预览
+    private fun updateIconPreview(dialogBinding: DialogEditUrlBinding, searchUrl: SearchUrl) {
+        // 不再在这里设置RadioButton状态，避免与用户操作冲突
+        // 只根据传入的searchUrl属性更新预览
+
+        // 根据当前模式设置图标预览
+        if (searchUrl.useTextIcon) {
+            // 文字图标模式：使用自定义文字图标
+            // 优先使用对话框中当前输入的文本，如果为空则使用searchUrl对象的文本
+            val text = dialogBinding.editTextIconText.text.toString().takeIf { it.isNotBlank() }
+                ?: searchUrl.iconText.takeIf { it.isNotBlank() }
+                ?: searchUrl.name
+
+            // 优先使用当前对话框中选择的背景颜色
+            val bgColor = (dialogBinding.viewIconBackgroundColor.background as? android.graphics.drawable.ColorDrawable)?.color
+                ?: searchUrl.iconBackgroundColor
+
+            val drawable = com.example.aggregatesearch.utils.IconLoader.createTextIcon(
+                dialogBinding.root.context,
+                text,
+                bgColor
+            )
+            dialogBinding.imageViewIconPreview.setImageDrawable(drawable)
+
+            // 隐藏刷新图标按钮，因为文字图标不需要刷新
+            dialogBinding.btnRefreshIcon.visibility = View.GONE
+        } else {
+            // 自动图标模式：尝试加载网络图标
+            com.example.aggregatesearch.utils.IconLoader.loadIcon(
+                dialogBinding.root.context,
+                searchUrl,
+                dialogBinding.imageViewIconPreview
+            )
+
+            // 显示刷新图标按钮
+            dialogBinding.btnRefreshIcon.visibility = View.VISIBLE
+        }
+    }
+
+    // 更新编辑模式UI状态
+    private fun updateEditModeUI() {
+        // 更新编辑按钮图标
+        menuEditMode?.icon = resources.getDrawable(
+            if (isEditMode) android.R.drawable.ic_menu_close_clear_cancel
+            else android.R.drawable.ic_menu_edit,
+            theme
+        )
+
+        // 更新适配器中的编辑模式状态
+        groupedAdapter.setEditMode(isEditMode)
+
+        // 根据编辑模式控制添加按钮的可见性
+        menuPlus?.isVisible = !isEditMode // 编辑模式下隐藏添加按钮，由组内的添加按钮代替
+
+        // 显示提示信息
+        if (isEditMode) {
+            Toast.makeText(this, "已进入编辑模式", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "已退出编辑模式", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun setupSearchFunction() {
+        // 设置搜索按钮点击事件
         binding.buttonSearch.setOnClickListener {
             performSearch()
         }
 
+
         binding.editTextSearch.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 performSearch()
-                true
-            } else {
-                false
+                return@setOnEditorActionListener true
+            }
+            false
+        }
+
+        // 点击搜索框时，如果已经有内容，则显示建议
+        binding.editTextSearch.setOnTouchListener { v, _ ->
+            (v as? AutoCompleteTextView)?.showDropDown()
+            false
+        }
+
+        // 当搜索框获得焦点时显示历史记录
+        binding.editTextSearch.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                (binding.editTextSearch as? AutoCompleteTextView)?.showDropDown()
             }
         }
     }
 
     private fun performSearch() {
-        val searchQuery = binding.editTextSearch.text.toString().trim()
-        if (searchQuery.isNotEmpty()) {
-            // 保存历史
-            if (searchHistoryManager.isHistoryEnabled()) {
-                searchHistoryManager.addQuery(searchQuery)
-                val autoText = binding.editTextSearch as? AutoCompleteTextView
-                autoText?.threshold = 0
-                val adapter = autoText?.adapter as? ArrayAdapter<String>
-                if (adapter != null) {
-                    adapter.clear()
-                    adapter.addAll(searchHistoryManager.getHistory())
-                    adapter.notifyDataSetChanged()
-                } else {
-                    autoText?.setAdapter(ArrayAdapter(this, android.R.layout.simple_list_item_1, searchHistoryManager.getHistory()))
-                }
-            }
-            val selectedUrls = searchViewModel.allUrls.value?.filter { it.isEnabled } ?: listOf()
-            if (selectedUrls.isNotEmpty()){
-                UrlLauncher.launchSearchUrls(this, searchQuery, selectedUrls)
+        val query = binding.editTextSearch.text.toString().trim()
+        if (query.isNotEmpty()) {
+            // 添加到搜索历史
+            searchHistoryManager.addQuery(query)
+
+            val enabledUrls = searchViewModel.getEnabledUrls().filterIsInstance<SearchUrl>()
+
+            if (enabledUrls.isNotEmpty()) {
+                // 启动搜索
+                UrlLauncher.launchSearchUrls(this, query, enabledUrls)
             } else {
-                Toast.makeText(this, "没有选中的搜索链接", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "请先选择至少一个搜索引擎", Toast.LENGTH_SHORT).show()
             }
         } else {
             Toast.makeText(this, "请输入搜索内容", Toast.LENGTH_SHORT).show()
@@ -721,72 +1115,59 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSelectAllButton() {
-        val autoText = binding.editTextSearch as? AutoCompleteTextView
-        autoText?.apply {
-            threshold = 0 // 点击即弹出
-            if (searchHistoryManager.isHistoryEnabled()) {
-                setAdapter(ArrayAdapter(this@MainActivity, android.R.layout.simple_list_item_1, searchHistoryManager.getHistory()))
-            }
-            setOnFocusChangeListener { _, hasFocus ->
-                if (hasFocus) {
-                    showDropDown()
-                }
-            }
-            setOnClickListener {
-                showDropDown()
-            }
-        }
-
         binding.buttonSelectAll.setOnClickListener {
+            // 切换全选状态
             isAllSelected = !isAllSelected
-            // 更新图标
-            val iconRes = if (isAllSelected) android.R.drawable.checkbox_on_background else android.R.drawable.checkbox_off_background
-            binding.buttonSelectAll.setImageResource(iconRes)
 
-            // 更新所有链接选中状态
-            searchViewModel.setAllUrlsEnabled(isAllSelected)
-        }
-    }
+            searchViewModel.setAllSelected(isAllSelected)
 
-    /** 刷新搜索历史下拉建议 */
-    private fun refreshSearchHistorySuggestions() {
-        val autoText = binding.editTextSearch as? AutoCompleteTextView ?: return
-        if (searchHistoryManager.isHistoryEnabled()) {
-            autoText.setAdapter(ArrayAdapter(this, android.R.layout.simple_list_item_1, searchHistoryManager.getHistory()))
-        } else {
-            autoText.setAdapter(null)
-        }
-    }
-
-    /** 刷新固定关键词 Chips */
-    private fun refreshPinnedChips() {
-        val container = binding.containerPinned
-        container.removeAllViews()
-        val inflater = LayoutInflater.from(this)
-        val pinned = pinnedSearchManager.getPinned()
-        for (word in pinned) {
-            val chip = com.google.android.material.chip.Chip(this, null, com.google.android.material.R.attr.chipStyle).apply {
-                text = word
-                isCloseIconVisible = pinnedEditMode
-                setOnClickListener {
-                    if (pinnedEditMode) {
-                        // 删除
-                        pinnedSearchManager.removePin(word)
-                        refreshPinnedChips()
-                    } else {
-                        binding.editTextSearch.setText(word)
-                        binding.editTextSearch.setSelection(word.length)
-                        performSearch()
-                    }
-                }
-                setOnLongClickListener {
-                    pinnedEditMode = !pinnedEditMode
-                    refreshPinnedChips()
-                    true
-                }
+            // 更新按钮文字
+            if (it is Button) {
+                it.text = getString(if (isAllSelected) R.string.deselect_all else R.string.select_all)
             }
-            container.addView(chip)
+
+            // 显示提示
+            val message = if (isAllSelected) "已全选" else "已取消全选"
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         }
-        binding.scrollViewPinned.visibility = if (pinned.isEmpty()) View.GONE else View.VISIBLE
+    }
+
+    private fun refreshSearchHistorySuggestions() {
+        // 获取搜索历史
+        val histories = searchHistoryManager.getHistory()
+
+        // 更新搜索框的自动完成建议
+        if (binding.editTextSearch is AutoCompleteTextView) {
+            val autoCompleteTextView = binding.editTextSearch as AutoCompleteTextView
+            val adapter = ArrayAdapter(
+                this,
+                android.R.layout.simple_dropdown_item_1line,
+                histories.toTypedArray()
+            )
+            autoCompleteTextView.setAdapter(adapter)
+        }
+    }
+
+    private fun refreshPinnedSearches() {
+        val pinnedWords = pinnedSearchManager.getPinned()
+        if (pinnedWords.isNotEmpty()) {
+            binding.recyclerViewPinned.visibility = View.VISIBLE
+            pinnedAdapter.setWords(pinnedWords)
+        } else {
+            binding.recyclerViewPinned.visibility = View.GONE
+        }
+    }
+
+
+
+    private fun showHelpDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_help, null)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("使用说明")
+            .setView(dialogView)
+            .setPositiveButton("知道了", null)
+            .create()
+
+        dialog.show()
     }
 }
