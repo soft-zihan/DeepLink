@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <!-- 使用 FlexboxLayout 横向排列图标，自动换行 -->
+    <com.google.android.flexbox.FlexboxLayout
+        android:id="@+id/iconsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        app:flexWrap="wrap"
+        app:alignItems="flex_start"
+        app:alignContent="flex_start"
+        app:flexDirection="row">
+        <!-- 图标将在代码中动态添加 -->
+    </com.google.android.flexbox.FlexboxLayout>
+</LinearLayout>

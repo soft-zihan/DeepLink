@@ -1,62 +1,115 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <SwitchPreferenceCompat
-        android:key="pref_history"
-        android:title="搜索历史记录"
-        android:summary="开启或关闭搜索历史" />
+    <!-- 基本功能设置组 -->
+    <PreferenceCategory
+        android:title="基本功能"
+        app:iconSpaceReserved="true">
 
-    <Preference
-        android:key="pref_backup"
-        android:title="备份"
-        android:summary="备份数据到文件" />
+        <SwitchPreferenceCompat
+            android:key="pref_history"
+            android:title="搜索历史记录"
+            android:summary="开启或关闭搜索历史"
+            android:icon="@android:drawable/ic_menu_recent_history"
+            app:iconSpaceReserved="true" />
 
-    <Preference
-        android:key="pref_restore"
-        android:title="恢复"
-        android:summary="从备份文件恢复" />
+        <Preference
+            android:key="pref_backup"
+            android:title="备份"
+            android:summary="备份数据到文件"
+            android:icon="@android:drawable/ic_menu_save"
+            app:iconSpaceReserved="true" />
 
-    <com.example.aggregatesearch.preferences.ToolbarColorPreference
-        android:key="pref_toolbar_color_inline"
-        android:title="顶栏颜色" />
+        <Preference
+            android:key="pref_restore"
+            android:title="恢复"
+            android:summary="从备份文件恢复"
+            android:icon="@android:drawable/ic_menu_revert"
+            app:iconSpaceReserved="true" />
 
-    <com.example.aggregatesearch.preferences.ThemeTogglePreference
-        android:key="pref_theme_toggle"
-        android:title="主题切换" />
+    </PreferenceCategory>
 
-    <Preference
-        android:key="pref_wallpaper_light"
-        android:title="壁纸 (浅色主题)"
-        android:summary="选择一张图片作为浅色主题壁纸" />
+    <!-- 界面与主题设置组 -->
+    <PreferenceCategory
+        android:title="界面与主题"
+        app:iconSpaceReserved="true">
 
-    <Preference
-        android:key="pref_wallpaper_dark"
-        android:title="壁纸 (深色主题)"
-        android:summary="选择一张图片作为深色主题壁纸" />
+        <com.example.aggregatesearch.preferences.ThemePreference
+            android:key="pref_app_theme"
+            android:title="应用主题"
+            android:summary="选择浅色、深色或跟随系统"
+            android:icon="@android:drawable/ic_menu_view"
+            app:iconSpaceReserved="true" />
 
-    <SeekBarPreference
-        android:key="pref_wallpaper_light_alpha"
-        android:title="壁纸透明度 (浅色)"
-        android:defaultValue="100"
-        android:min="0"
-        android:max="100" />
+        <ListPreference
+            android:key="pref_toolbar_color"
+            android:title="顶栏颜色"
+            android:summary="自定义应用顶栏颜色"
+            android:icon="@android:drawable/ic_menu_preferences"
+            app:iconSpaceReserved="true"
+            android:entries="@array/toolbar_colors"
+            android:entryValues="@array/toolbar_color_values" />
 
-    <SeekBarPreference
-        android:key="pref_wallpaper_dark_alpha"
-        android:title="壁纸透明度 (深色)"
-        android:defaultValue="100"
-        android:min="0"
-        android:max="100" />
+    </PreferenceCategory>
 
-    <Preference
-        android:key="pref_version"
-        android:title="当前版本"
-        android:summary="v1.3"
-        android:selectable="false" />
+    <!-- 壁纸设置组 -->
+    <PreferenceCategory
+        android:title="壁纸设置"
+        app:iconSpaceReserved="true">
 
-    <Preference
-        android:key="pref_check_update"
-        android:title="检查更新"
-        android:summary="检查是否有新版本可用" />
+        <Preference
+            android:key="pref_wallpaper_light"
+            android:title="壁纸 (浅色主题)"
+            android:summary="选择一张图片作为浅色主题壁纸"
+            android:icon="@android:drawable/ic_menu_gallery"
+            app:iconSpaceReserved="true" />
 
-</PreferenceScreen> 
+        <SeekBarPreference
+            android:key="pref_wallpaper_light_alpha"
+            android:title="壁纸透明度 (浅色)"
+            android:defaultValue="100"
+            android:min="0"
+            android:max="100"
+            android:icon="@android:drawable/ic_menu_crop"
+            app:iconSpaceReserved="true" />
+
+        <Preference
+            android:key="pref_wallpaper_dark"
+            android:title="壁纸 (深色主题)"
+            android:summary="选择一张图片作为深色主题壁纸"
+            android:icon="@android:drawable/ic_menu_gallery"
+            app:iconSpaceReserved="true" />
+
+        <SeekBarPreference
+            android:key="pref_wallpaper_dark_alpha"
+            android:title="壁纸透明度 (深色)"
+            android:defaultValue="100"
+            android:min="0"
+            android:max="100"
+            android:icon="@android:drawable/ic_menu_crop"
+            app:iconSpaceReserved="true" />
+    </PreferenceCategory>
+
+    <!-- 关于与版本信息组 -->
+    <PreferenceCategory
+        android:title="关于"
+        app:iconSpaceReserved="true">
+
+        <Preference
+            android:key="pref_version"
+            android:title="当前版本"
+            android:summary="v1.3"
+            android:selectable="false"
+            android:icon="@android:drawable/ic_menu_info_details"
+            app:iconSpaceReserved="true" />
+
+        <Preference
+            android:key="pref_check_update"
+            android:title="检查更新"
+            android:summary="检查是否有新版本可用"
+            android:icon="@android:drawable/ic_menu_upload"
+            app:iconSpaceReserved="true" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

@@ -1,0 +1,19 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build and Install APK",
+			"type": "shell",
+			"command": "gradlew.bat",
+			"args": [
+				"assembleDebug",
+				"installDebug"
+			],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			]
+		}
+	]
+}

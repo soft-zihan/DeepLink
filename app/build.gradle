@@ -1,7 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
-    id 'kotlin-kapt'
+    id 'com.google.devtools.ksp'
 }
 
 android {
@@ -11,10 +11,17 @@ android {
         applicationId "com.example.aggregatesearch"
         minSdkVersion 24
         targetSdkVersion 34
-        versionCode 3
-        versionName "1.3"
+        versionCode 4
+        versionName "1.4"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // 配置 Room schema 导出位置
+        ksp {
+            arg("room.schemaLocation", "$projectDir/schemas")
+            arg("room.incremental", "true")
+            arg("room.expandProjection", "true")
+        }
     }
 
     signingConfigs {
@@ -43,6 +50,7 @@ android {
     }
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
     buildTypes {
         release {
@@ -62,11 +70,18 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.6.1'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1'
     implementation 'androidx.recyclerview:recyclerview:1.3.0'
-    implementation 'androidx.room:room-runtime:2.6.1' // Updated version
-    implementation 'androidx.room:room-ktx:2.6.1'     // Updated version
-    kapt 'androidx.room:room-compiler:2.6.1'      // Updated version
+
+    // 使用 Room 数据库并替换 kapt 为 ksp
+    def room_version = "2.6.1"
+    implementation "androidx.room:room-runtime:$room_version"
+    implementation "androidx.room:room-ktx:$room_version"
+    ksp "androidx.room:room-compiler:$room_version"
+
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
     implementation 'androidx.preference:preference-ktx:1.2.1'
+    implementation("com.github.dhaval2404:colorpicker:2.3")
+    implementation("com.github.yalantis:ucrop:2.2.9") // uCrop for image cropping, updated version
+    implementation("com.google.android.flexbox:flexbox:3.0.0") // 添加FlexboxLayout依赖
 }

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="toolbar_colors">
+        <item>默认</item>
+        <item>蓝色</item>
+        <item>红色</item>
+        <item>绿色</item>
+        <item>紫色</item>
+        <item>橙色</item>
+        <item>棕色</item>
+    </string-array>
+    <string-array name="toolbar_color_values">
+        <item>default</item>
+        <item>#2196F3</item>
+        <item>#F44336</item>
+        <item>#4CAF50</item>
+        <item>#9C27B0</item>
+        <item>#FF9800</item>
+        <item>#795548</item>
+    </string-array>
+</resources>
+

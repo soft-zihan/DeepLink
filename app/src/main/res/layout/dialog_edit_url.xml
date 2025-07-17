@@ -1,89 +1,217 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="16dp">
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/editTextUrlName"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="链接名称"
-            android:inputType="text" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/editTextUrlPattern"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="链接地址（使用%s表示搜索词位置）"
-            android:inputType="textUri|textMultiLine"
-            android:minLines="3"
-            android:gravity="top|start" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <!-- 添加应用包名选择功能 -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="选择打开应用（可选）"
-        android:layout_marginBottom="8dp"/>
+    android:layout_height="wrap_content">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="vertical"
+        android:padding="16dp">
 
         <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp">
+            android:layout_marginBottom="16dp">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/editTextPackageName"
+                android:id="@+id/editTextUrlName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="应用包名"
-                android:inputType="text"
-                android:focusable="false"
-                android:clickable="false"/>
+                android:hint="链接名称"
+                android:inputType="text" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <Button
-            android:id="@+id/btnSelectApp"
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editTextUrlPattern"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="链接地址（使用%s表示搜索词位置）"
+                android:inputType="textUri|textMultiLine"
+                android:minLines="3"
+                android:gravity="top|start" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- 图标选项 -->
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="选择应用"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:textColor="@android:color/white"/>
+            android:text="图标设置"
+            android:layout_marginBottom="8dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <ImageView
+                android:id="@+id/imageViewIconPreview"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="16dp"
+                android:background="@drawable/color_preview_background"
+                android:padding="4dp"
+                android:src="@android:drawable/ic_menu_search"/>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <RadioGroup
+                    android:id="@+id/radioGroupIconType"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <RadioButton
+                        android:id="@+id/radioButtonAutoIcon"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="获取图标"/>
+
+                    <RadioButton
+                        android:id="@+id/radioButtonTextIcon"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="使用文字图标"/>
+                </RadioGroup>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="8dp">
+
+                    <Space
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
+                    <ImageButton
+                        android:id="@+id/btnRefreshIcon"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="8dp"
+                        android:src="@android:drawable/ic_menu_rotate"/>
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 文字图标设置 -->
+        <LinearLayout
+            android:id="@+id/layoutTextIcon"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <View
+                android:id="@+id/viewIconBackgroundColor"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="#2196F3"
+                android:layout_marginEnd="16dp"
+                android:clickable="true"
+                android:focusable="true"/>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editTextIconText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="图标文字"
+                    android:maxLength="12"
+                    android:inputType="text" />
+            </com.google.android.material.textfield.TextInputLayout>
+        </LinearLayout>
+
+        <!-- 添加应用包名选择功能 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="选择打开应用（可选）"
+            android:layout_marginBottom="8dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editTextPackageName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="应用包名"
+                    android:inputType="text"
+                    android:focusable="false"
+                    android:clickable="false"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <Button
+                android:id="@+id/btnSelectApp"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="选择应用"
+                android:textColor="?attr/colorPrimary" />
+
+            <Button
+                android:id="@+id/btnCancelAppBinding"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="清除"
+                android:textColor="?attr/colorPrimary"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/textViewSelectedAppName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:text=""
+            android:visibility="gone"/>
+
+        <Button
+            android:id="@+id/btnTestUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:backgroundTint="?attr/colorPrimary"
+            android:text="测试链接"
+            android:textColor="@android:color/white" />
+
+        <Button
+            android:id="@+id/buttonDeleteUrlDialog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="?attr/colorPrimary"
+            android:text="删除链接"
+            android:textColor="@android:color/white" />
+
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/textViewSelectedAppName"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp"
-        android:text=""
-        android:visibility="gone"/>
-
-    <Button
-        android:id="@+id/btnTestUrl"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="测试链接"
-        android:textColor="@android:color/white" />
-
-</LinearLayout>
+</ScrollView>
