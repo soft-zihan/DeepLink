@@ -51,9 +51,12 @@ class SearchViewModel(private val repository: SearchUrlRepository) : ViewModel()
 
     fun insert(searchUrl: SearchUrl) = viewModelScope.launch {
         try {
-            val maxOrderIndex = repository.getMaxOrderIndexForGroup(searchUrl.groupId) ?: -1
-            repository.insert(searchUrl.copy(orderIndex = maxOrderIndex + 1))
-            Log.d(TAG, "Inserted URL: ${searchUrl.name}")
+            val maxOrderIndex = _allUrls.value.filter { it.groupId == searchUrl.groupId }.mapNotNull { it.orderIndex }.maxOrNull() ?: -1
+            val newUrl = searchUrl.copy(orderIndex = maxOrderIndex + 1)
+            val newId = repository.insert(newUrl)
+            val finalUrl = newUrl.copy(id = newId)
+            _allUrls.update { it + finalUrl }
+            Log.d(TAG, "Inserted URL: ${finalUrl.name}")
         } catch (e: Exception) {
             Log.e(TAG, "Error inserting URL: ${searchUrl.name}", e)
         }
@@ -143,9 +146,11 @@ class SearchViewModel(private val repository: SearchUrlRepository) : ViewModel()
                 return@launch
             }
 
-            val maxOrderIndex = repository.getMaxGroupOrderIndex() ?: -1
+            val maxOrderIndex = _allGroups.value.mapNotNull { it.orderIndex }.maxOrNull() ?: -1
             val newGroup = UrlGroup(name = groupName, orderIndex = maxOrderIndex + 1)
-            repository.insertGroup(newGroup)
+            val newId = repository.insertGroup(newGroup)
+            val finalGroup = newGroup.copy(id = newId)
+            _allGroups.update { it + finalGroup }
             Log.d(TAG, "Added new group: $groupName")
         } catch (e: Exception) {
             Log.e(TAG, "Error adding group: $groupName", e)

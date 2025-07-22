@@ -8,9 +8,9 @@ class SearchUrlRepository(private val searchUrlDao: SearchUrlDao) {
     val allUrls: Flow<List<SearchUrl>> = searchUrlDao.getAllUrls()
     val allGroups: Flow<List<UrlGroup>> = searchUrlDao.getAllGroups()
 
-    suspend fun insert(searchUrl: SearchUrl) {
+    suspend fun insert(searchUrl: SearchUrl): Long {
         // The logic for orderIndex should be handled in ViewModel or before calling this
-        searchUrlDao.insert(searchUrl)
+        return searchUrlDao.insert(searchUrl)
     }
 
     suspend fun update(searchUrl: SearchUrl) {

@@ -35,7 +35,7 @@ interface SearchUrlDao {
     suspend fun updateGroups(groups: List<UrlGroup>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(searchUrl: SearchUrl)
+    suspend fun insert(searchUrl: SearchUrl): Long
 
     @Update
     suspend fun update(searchUrl: SearchUrl)
