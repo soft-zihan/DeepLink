@@ -42,7 +42,7 @@ abstract class SearchUrlDatabase : RoomDatabase() {
                                         val urlGroupId = searchUrlDao.insertGroup(urlGroup)
 
                                         // 添加URL搜索链接
-                                        val baiduUrl = SearchUrl(name = "Baidu", urlPattern = "https://www.baidu.com/s?wd=%s", groupId = urlGroupId, orderIndex = 0, isEnabled = true, packageName = "")
+                                        val baiduUrl = SearchUrl(name = "百度", urlPattern = "https://www.baidu.com/s?wd=%s", groupId = urlGroupId, orderIndex = 0, isEnabled = true, packageName = "")
                                         val bingUrl = SearchUrl(name = "Bing", urlPattern = "https://www.bing.com/search?q=%s", groupId = urlGroupId, orderIndex = 1, isEnabled = true, packageName = "")
                                         val googleUrl = SearchUrl(name = "Google", urlPattern = "https://www.google.com/search?q=%s", groupId = urlGroupId, orderIndex = 2, isEnabled = true, packageName = "")
                                         val yandexUrl = SearchUrl(name = "Yandex", urlPattern = "https://yandex.com/search/?text=%s", groupId = urlGroupId, orderIndex = 3, isEnabled = true, packageName = "")
@@ -62,23 +62,25 @@ abstract class SearchUrlDatabase : RoomDatabase() {
 
                                         // 添加APP链接
                                         val zhihuUrl = SearchUrl(name = "知乎", urlPattern = "zhihu://search?q=%s", groupId = appGroupId, orderIndex = 0, isEnabled = true, packageName = "")
-                                        val bilibiliUrl = SearchUrl(name = "哔哩哔哩", urlPattern = "bilibili://search/%s", groupId = appGroupId, orderIndex = 1, isEnabled = true, packageName = "tv.danmaku.bili")
-                                        val xiaohongshuUrl = SearchUrl(name = "小红书", urlPattern = "xhsdiscover://search/result?keyword=%s", groupId = appGroupId, orderIndex = 2, isEnabled = true, packageName = "com.xingin.xhs")
+                                        val bilibiliUrl = SearchUrl(name = "哔哩哔哩", urlPattern = "bilibili://search/%s", groupId = appGroupId, orderIndex = 1, isEnabled = true, packageName = "")
+                                        val xiaohongshuUrl = SearchUrl(name = "小红书", urlPattern = "xhsdiscover://search/result?keyword=%s", groupId = appGroupId, orderIndex = 2, isEnabled = true, packageName = "")
                                         val douyinUrl = SearchUrl(name = "抖音", urlPattern = "snssdk1128://search/trending?keyword=%s", groupId = appGroupId, orderIndex = 3, isEnabled = true, packageName = "")
                                         val weiboUrl = SearchUrl(name = "微博", urlPattern = "sinaweibo://searchall?q=%s", groupId = appGroupId, orderIndex = 4, isEnabled = true, packageName = "")
+                                        val youtubeUrl = SearchUrl(name = "Youtube", urlPattern = "https://www.youtube.com/results?search_query=%s", groupId = appGroupId, orderIndex = 5, isEnabled = true, packageName = "")
 
                                         searchUrlDao.insert(zhihuUrl)
                                         searchUrlDao.insert(bilibiliUrl)
                                         searchUrlDao.insert(xiaohongshuUrl)
                                         searchUrlDao.insert(douyinUrl)
                                         searchUrlDao.insert(weiboUrl)
+                                        searchUrlDao.insert(youtubeUrl)
 
 
                                         // 创建购物APP分组
                                         val shoppingGroup = UrlGroup(name = "购物", orderIndex = 2, color = "#FF0000")
                                         val shoppingGroupId = searchUrlDao.insertGroup(shoppingGroup)
 
-                                        val pddUrl = SearchUrl(name = "拼多多", urlPattern = "pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=%s", groupId = shoppingGroupId, orderIndex = 0, isEnabled = true, packageName = "com.xunmeng.pinduoduo")
+                                        val pddUrl = SearchUrl(name = "拼多多", urlPattern = "pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=%s", groupId = shoppingGroupId, orderIndex = 0, isEnabled = true, packageName = "")
                                         val jdUrl = SearchUrl(name = "京东", urlPattern = "openApp.jdMobile://virtual?params={\"category\":\"jump\",\"des\":\"search\",\"keyWord\":\"%s\"}", groupId = shoppingGroupId, orderIndex = 1, isEnabled = true, packageName = "")
                                         val taobaoUrl = SearchUrl(name = "淘宝", urlPattern = "taobao://list.tmall.com/search_product.html?q=%s", groupId = shoppingGroupId, orderIndex = 2, isEnabled = true, packageName = "")
                                         val xianyuUrl = SearchUrl(name = "闲鱼", urlPattern = "fleamarket://searchitems?keyword=%s&searchType=0", groupId = shoppingGroupId, orderIndex = 3, isEnabled = true, packageName = "")
@@ -89,7 +91,7 @@ abstract class SearchUrlDatabase : RoomDatabase() {
                                         searchUrlDao.insert(xianyuUrl)
 
                                         // 创建应用商城分组
-                                        val appStoreGroup = UrlGroup(name = "应用商城", orderIndex = 3, color = "#FFFFFF")
+                                        val appStoreGroup = UrlGroup(name = "应用商城", orderIndex = 3, color = "#FFFF00")
                                         val appStoreGroupId = searchUrlDao.insertGroup(appStoreGroup)
 
                                         val vivoUrl = SearchUrl(name = "默认商店", urlPattern = "market://search?q=%s", groupId = appStoreGroupId, orderIndex = 0, isEnabled = true, packageName = "")
@@ -101,7 +103,7 @@ abstract class SearchUrlDatabase : RoomDatabase() {
 
 
                                         // 创建外卖APP分组
-                                        val foodGroup = UrlGroup(name = "外卖", orderIndex = 4, color = "#FFFFFF")
+                                        val foodGroup = UrlGroup(name = "外卖", orderIndex = 4, color = "#00ff22ff")
                                         val foodGroupId = searchUrlDao.insertGroup(foodGroup)
 
                                         val meituanUrl = SearchUrl(name = "美团", urlPattern = "imeituan://www.meituan.com/search?q=%s", groupId = foodGroupId, orderIndex = 0, isEnabled = true, packageName = "")

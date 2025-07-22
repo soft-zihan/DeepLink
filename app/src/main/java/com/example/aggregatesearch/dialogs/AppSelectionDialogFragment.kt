@@ -83,7 +83,7 @@ class AppSelectionDialogFragment : DialogFragment() {
             override fun afterTextChanged(s: Editable?) {
                 searchJob?.cancel()
                 searchJob = lifecycleScope.launch {
-                    delay(300) // 添加防抖动延迟
+                    delay(150) // 添加防抖动延迟
                     val query = s.toString().trim()
                     if (query.isNotEmpty()) {
                         val searchResults = appPackageManager.searchApps(query)

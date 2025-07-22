@@ -43,13 +43,16 @@ class PinnedSearchManager(context: Context) {
             }
         }
 
-
         val savedString = prefs.getString(KEY_PIN_LIST, null)
         return if (savedString.isNullOrEmpty()) {
             emptyList()
         } else {
             savedString.split(SEPARATOR)
         }
+    }
+
+    fun clearAll() {
+        prefs.edit().remove(KEY_PIN_LIST).apply()
     }
 
     companion object {

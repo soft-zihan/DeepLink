@@ -8,6 +8,7 @@ class AppPreferences(context: Context) {
 
     companion object {
         const val KEY_THEME = "key_theme"
+        const val KEY_USE_BUILT_IN_BROWSER = "key_use_built_in_browser"
     }
 
     fun setTheme(theme: String) {
@@ -17,5 +18,12 @@ class AppPreferences(context: Context) {
     fun getTheme(): String? {
         return prefs.getString(KEY_THEME, null)
     }
-}
 
+    fun setUseBuiltInBrowser(useBuiltIn: Boolean) {
+        prefs.edit().putBoolean(KEY_USE_BUILT_IN_BROWSER, useBuiltIn).apply()
+    }
+
+    fun getUseBuiltInBrowser(): Boolean {
+        return prefs.getBoolean(KEY_USE_BUILT_IN_BROWSER, true) // 默认使用内置浏览器
+    }
+}

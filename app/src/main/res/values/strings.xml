@@ -39,4 +39,11 @@
         <item>light</item>
         <item>dark</item>
     </string-array>
+
+    <!-- Help Dialog Strings -->
+    <string name="help_group_double_click">  • <b>双击</b>：直接使用该分组下所有<b>已启用</b>的链接进行搜索。</string>
+    <string name="help_group_long_press">  • <b>长按并拖动</b>：调整分组的上下顺序。</string>
+    <string name="help_icon_double_click">  • <b>双击</b>：直接使用此链接进行搜索。</string>
+    <string name="help_edit_mode_click_icon">• 在编辑模式下，<b>单击</b>链接图标是进行<b>编辑</b>操作。</string>
+    <string name="help_edit_mode_long_press_icon">• 在编辑模式下，可以<b>长按并拖动</b>链接图标来调整其在分组内的顺序。</string>
 </resources>

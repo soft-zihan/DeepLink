@@ -30,6 +30,10 @@ class SearchHistoryManager(context: Context) {
         return historyString.split(SEPARATOR).filter { it.isNotEmpty() }
     }
 
+    fun clearHistory() {
+        prefs.edit().remove(KEY_HISTORY_LIST).apply()
+    }
+
     companion object {
         private const val PREF_NAME = "search_history_prefs"
         private const val KEY_HISTORY_LIST = "key_history_list"

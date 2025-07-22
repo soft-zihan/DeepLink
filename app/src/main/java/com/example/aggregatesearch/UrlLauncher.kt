@@ -8,6 +8,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.net.toUri
 import com.example.aggregatesearch.data.SearchUrl
+import com.example.aggregatesearch.utils.AppPreferences
 
 object UrlLauncher {
     
@@ -18,6 +19,9 @@ object UrlLauncher {
             Toast.makeText(context, "请选择至少一个搜索链接", Toast.LENGTH_SHORT).show()
             return
         }
+
+        val appPreferences = AppPreferences(context)
+        val useBuiltInBrowser = appPreferences.getUseBuiltInBrowser()
 
         var launchCount = 0
         for (url in selectedUrls) {
@@ -55,27 +59,36 @@ object UrlLauncher {
 
                 try {
                     val uri = formattedUrl.toUri()
-                    val intent = Intent(Intent.ACTION_VIEW, uri)
 
-                    // 如果指定了包名，并且该包已安装，则使用指定的应用打开
-                    if (url.packageName.isNotEmpty()) {
-                        val packageManager = context.packageManager
-                        if (isPackageInstalled(url.packageName, packageManager)) {
-                            intent.setPackage(url.packageName)
-                        } else {
-                            showError(context, "指定的应用未安装: ${url.name} (${url.packageName})")
-                            // 尝试不指定包名继续打开
-                            val genericIntent = Intent(Intent.ACTION_VIEW, uri)
-                            genericIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(genericIntent)
-                            launchCount++
-                            continue
+                    // 检查是否是网页链接且使用内置浏览器
+                    if (useBuiltInBrowser && isWebUrl(formattedUrl) && !isAppIntentUrl(formattedUrl)) {
+                        // 使用内置浏览器打开
+                        openInBuiltInBrowser(context, formattedUrl)
+                        launchCount++
+                    } else {
+                        // 使用默认浏览器或应用打开
+                        val intent = Intent(Intent.ACTION_VIEW, uri)
+
+                        // 如果指定了包名，并且该包已安装，则使用指定的应用打开
+                        if (url.packageName.isNotEmpty()) {
+                            val packageManager = context.packageManager
+                            if (isPackageInstalled(url.packageName, packageManager)) {
+                                intent.setPackage(url.packageName)
+                            } else {
+                                showError(context, "指定的应用未安装: ${url.name} (${url.packageName})")
+                                // 尝试不指定包名继续打开
+                                val genericIntent = Intent(Intent.ACTION_VIEW, uri)
+                                genericIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                context.startActivity(genericIntent)
+                                launchCount++
+                                continue
+                            }
                         }
-                    }
 
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(intent)
-                    launchCount++
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                        launchCount++
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "URL格式错误: $formattedUrl", e)
                     showError(context, "URL格式错误: ${url.name}")
@@ -104,5 +117,29 @@ object UrlLauncher {
     private fun showError(context: Context, message: String) {
         Log.w(TAG, message)
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
+
+    // 检查是否是网页URL
+    private fun isWebUrl(url: String): Boolean {
+        return url.startsWith("http://", ignoreCase = true) ||
+               url.startsWith("https://", ignoreCase = true)
+    }
+
+    // 检查是否是app intent URL (如 bilibili://, intent:// 等)
+    private fun isAppIntentUrl(url: String): Boolean {
+        return !url.startsWith("http://", ignoreCase = true) &&
+               !url.startsWith("https://", ignoreCase = true)
+    }
+
+    // 在内置浏览器中打开URL
+    private fun openInBuiltInBrowser(context: Context, url: String) {
+        if (context is MainActivity) {
+            context.openInBuiltInBrowser(url)
+        } else {
+            // 如果context不是MainActivity，使用默认浏览器打开
+            val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        }
     }
 }

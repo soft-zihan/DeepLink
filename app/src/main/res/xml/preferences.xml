@@ -8,6 +8,14 @@
         app:iconSpaceReserved="true">
 
         <SwitchPreferenceCompat
+            android:key="pref_use_built_in_browser"
+            android:title="使用内置浏览器"
+            android:summary="开启后网页链接将在应用内打开，关闭则使用默认浏览器"
+            android:defaultValue="true"
+            android:icon="@android:drawable/ic_menu_view"
+            app:iconSpaceReserved="true" />
+
+        <SwitchPreferenceCompat
             android:key="pref_history"
             android:title="搜索历史记录"
             android:summary="开启或关闭搜索历史"

@@ -5,46 +5,46 @@ import androidx.lifecycle.*
 import com.example.aggregatesearch.data.SearchUrl
 import com.example.aggregatesearch.data.SearchUrlRepository
 import com.example.aggregatesearch.data.UrlGroup
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class SearchViewModel(private val repository: SearchUrlRepository) : ViewModel() {
 
     private val TAG = "SearchViewModel"
 
-    val allUrls: StateFlow<List<SearchUrl>> = repository.allUrls
-        .catch { e ->
-            Log.e(TAG, "Error collecting URLs", e)
-            emit(emptyList())
+    private val _allUrls = MutableStateFlow<List<SearchUrl>>(emptyList())
+    val allUrls: StateFlow<List<SearchUrl>> = _allUrls.asStateFlow()
+
+    private val _allGroups = MutableStateFlow<List<UrlGroup>>(emptyList())
+    val allGroups: StateFlow<List<UrlGroup>> = _allGroups.asStateFlow()
+
+    val groupedItems: StateFlow<List<UrlGroup>> = _allGroups
+        .combine(_allUrls) { groups, urls ->
+            groups.map { group ->
+                val newGroup = group.copy()
+                newGroup.urls = urls.filter { it.groupId == group.id }.sortedBy { it.orderIndex }
+                newGroup
+            }.sortedBy { it.orderIndex }
         }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    val allGroups: StateFlow<List<UrlGroup>> = repository.allGroups
-        .catch { e ->
-            Log.e(TAG, "Error collecting groups", e)
-            emit(emptyList())
+    init {
+        viewModelScope.launch {
+            // Load initial data from the repository.
+            // After this, the StateFlows in the ViewModel are the single source of truth for the UI.
+            // Database updates become "fire and forget" to prevent UI state rebound.
+            _allUrls.value = repository.allUrls.first()
+            _allGroups.value = repository.allGroups.first()
         }
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-
-    val groupedItems: StateFlow<List<Any>> = combine(allGroups, allUrls) { groups, urls ->
-        val items = mutableListOf<Any>()
-        try {
-            groups.sortedBy { it.orderIndex }.forEach { group ->
-                items.add(group)
-                if (group.isExpanded) {
-                    items.addAll(urls.filter { it.groupId == group.id }.sortedBy { it.orderIndex })
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error combining groups and URLs", e)
-        }
-        items
-    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    }
 
     fun insert(searchUrl: SearchUrl) = viewModelScope.launch {
         try {
@@ -56,36 +56,80 @@ class SearchViewModel(private val repository: SearchUrlRepository) : ViewModel()
         }
     }
 
-    fun updateUrl(searchUrl: SearchUrl) = viewModelScope.launch {
-        try {
-            repository.update(searchUrl)
-            Log.d(TAG, "Updated URL: ${searchUrl.name}")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating URL: ${searchUrl.name}", e)
+    fun updateUrl(searchUrl: SearchUrl) {
+        // Optimistic update
+        _allUrls.update { currentUrls ->
+            currentUrls.map { if (it.id == searchUrl.id) searchUrl else it }
         }
-    }
 
-    fun delete(searchUrl: SearchUrl) = viewModelScope.launch {
-        try {
-            repository.delete(searchUrl)
-            Log.d(TAG, "Deleted URL: ${searchUrl.name}")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error deleting URL: ${searchUrl.name}", e)
-        }
-    }
-
-    fun updateUrlsOrder(orderedUrls: List<SearchUrl>, targetGroupId: Long? = null) = viewModelScope.launch {
-        try {
-            if (orderedUrls.isEmpty()) return@launch
-
-            val finalListToPersist = orderedUrls.mapIndexed { index, url ->
-                url.copy(orderIndex = index, groupId = targetGroupId ?: url.groupId)
+        // Database update
+        viewModelScope.launch {
+            try {
+                repository.update(searchUrl)
+                Log.d(TAG, "Updated URL: ${searchUrl.name}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating URL: ${searchUrl.name}", e)
             }
+        }
+    }
 
-            repository.updateAllUrls(finalListToPersist)
-            Log.d(TAG, "Updated order for ${finalListToPersist.size} URLs")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating URLs order", e)
+    fun updateUrlStateInBackground(searchUrl: SearchUrl) {
+        // Optimistic update to ensure StateFlow is the source of truth.
+        _allUrls.update { currentUrls ->
+            currentUrls.map { if (it.id == searchUrl.id) searchUrl else it }
+        }
+
+        viewModelScope.launch {
+            try {
+                repository.update(searchUrl)
+                Log.d(TAG, "Updated URL state in background: ${searchUrl.name}, isEnabled: ${searchUrl.isEnabled}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating URL state in background: ${searchUrl.name}", e)
+            }
+        }
+    }
+
+    fun delete(searchUrl: SearchUrl) {
+        // Optimistic update
+        _allUrls.update { currentUrls ->
+            currentUrls.filterNot { it.id == searchUrl.id }
+        }
+
+        // Database update
+        viewModelScope.launch {
+            try {
+                repository.delete(searchUrl)
+                Log.d(TAG, "Deleted URL: ${searchUrl.name}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deleting URL: ${searchUrl.name}", e)
+            }
+        }
+    }
+
+    fun updateUrlsOrder(orderedUrls: List<SearchUrl>, targetGroupId: Long? = null) {
+        if (orderedUrls.isEmpty()) return
+
+        val finalListToUpdate = orderedUrls.mapIndexed { index, url ->
+            url.copy(orderIndex = index, groupId = targetGroupId ?: url.groupId)
+        }
+
+        // Optimistic update
+        _allUrls.update { currentUrls ->
+            val updatedIds = finalListToUpdate.map { it.id }.toSet()
+            val otherUrls = currentUrls.filterNot { it.id in updatedIds }
+            otherUrls + finalListToUpdate
+        }
+
+        // Database update
+        viewModelScope.launch {
+            try {
+                repository.updateAllUrls(finalListToUpdate)
+                Log.d(TAG, "Updated order for ${finalListToUpdate.size} URLs")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating URLs order", e)
+                // Revert on error - this is complex, for now, we log the error
+                // A full revert would require storing the pre-update state.
+            }
         }
     }
 
@@ -114,34 +158,64 @@ class SearchViewModel(private val repository: SearchUrlRepository) : ViewModel()
         }
     }
 
-    fun updateGroupExpanded(group: UrlGroup, isExpanded: Boolean) = viewModelScope.launch {
-        try {
-            repository.updateGroup(group.copy(isExpanded = isExpanded))
-            Log.d(TAG, "Updated group expansion: ${group.name}, expanded: $isExpanded")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating group expansion: ${group.name}", e)
+    fun updateGroupExpanded(group: UrlGroup, isExpanded: Boolean) {
+        val updatedGroup = group.copy(isExpanded = isExpanded)
+        _allGroups.update { currentGroups ->
+            currentGroups.map { if (it.id == updatedGroup.id) updatedGroup else it }
+        }
+
+        viewModelScope.launch {
+            try {
+                repository.updateGroup(updatedGroup)
+                Log.d(TAG, "Updated group expansion in background: ${updatedGroup.name}, expanded: $isExpanded")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating group expansion: ${updatedGroup.name}", e)
+            }
         }
     }
 
-    fun updateGroupSelected(group: UrlGroup, isSelected: Boolean) = viewModelScope.launch {
-        val currentAllUrls = repository.allUrls.first()
+    fun updateGroupSelected(group: UrlGroup, isSelected: Boolean) {
+        val urlsToUpdate = _allUrls.value
+            .filter { it.groupId == group.id }
+            .map { it.copy(isEnabled = isSelected) }
 
-        val urlsInGroup = currentAllUrls.filter { it.groupId == group.id }
-
-        if (urlsInGroup.isEmpty()) {
-            return@launch
+        if (urlsToUpdate.isEmpty()) {
+            return
         }
 
-        val updatedUrls = urlsInGroup.map { it.copy(isEnabled = isSelected) }
-        repository.updateAllUrls(updatedUrls)
+        val groupUrlIds = urlsToUpdate.map { it.id }.toSet()
+        _allUrls.update { currentUrls ->
+            currentUrls.filterNot { it.id in groupUrlIds } + urlsToUpdate
+        }
+
+        viewModelScope.launch {
+            try {
+                repository.updateAllUrls(urlsToUpdate)
+                Log.d(TAG, "Updated group selection in background: ${group.name}, selected: $isSelected")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating group selection: ${group.name}", e)
+            }
+        }
     }
 
-    fun updateGroupsOrder(orderedGroups: List<UrlGroup>) = viewModelScope.launch {
+    fun updateGroupsOrder(orderedGroups: List<UrlGroup>) {
         val updatedGroups = orderedGroups.mapIndexed { index, group ->
             group.copy(orderIndex = index)
         }
-        if (updatedGroups.isNotEmpty()) {
-            repository.updateGroups(updatedGroups)
+        if (updatedGroups.isEmpty()) return
+
+        // Optimistic update
+        _allGroups.value = updatedGroups
+
+        // Database update
+        viewModelScope.launch {
+            try {
+                repository.updateGroups(updatedGroups)
+                Log.d(TAG, "Updated groups order")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating groups order", e)
+                // Revert on error
+            }
         }
     }
 
@@ -195,8 +269,44 @@ class SearchViewModel(private val repository: SearchUrlRepository) : ViewModel()
         }
     }
 
-    fun updateGroup(group: UrlGroup) = viewModelScope.launch {
-        repository.updateGroup(group)
+    fun updateGroup(group: UrlGroup) {
+        // Optimistic update
+        _allGroups.update { currentGroups ->
+            currentGroups.map { if (it.id == group.id) group else it }
+        }
+
+        // Database update
+        viewModelScope.launch {
+            repository.updateGroup(group)
+        }
+    }
+
+    fun updateIconOrderInGroup(orderedUrls: List<SearchUrl>) {
+        if (orderedUrls.isEmpty()) return
+
+        val urlsToUpdate = orderedUrls.mapIndexed { index, url ->
+            url.copy(orderIndex = index)
+        }
+
+        // Optimistic update
+        val groupId = urlsToUpdate.firstOrNull()?.groupId
+        if (groupId != null) {
+            _allUrls.update { currentUrls ->
+                // Remove old versions of the reordered URLs and add the new versions.
+                val otherGroupUrls = currentUrls.filter { it.groupId != groupId }
+                otherGroupUrls + urlsToUpdate
+            }
+        }
+
+        // Database update
+        viewModelScope.launch {
+            try {
+                repository.updateAllUrls(urlsToUpdate)
+                Log.d(TAG, "Updated icon order in background for group $groupId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating icon order in group", e)
+            }
+        }
     }
 
     // 获取所有启用的URL
@@ -205,35 +315,20 @@ class SearchViewModel(private val repository: SearchUrlRepository) : ViewModel()
     }
 
     // 设置所有URL的选中状态
-    fun setAllSelected(selected: Boolean) = viewModelScope.launch {
-        try {
-            val updatedUrls = allUrls.value.map { it.copy(isEnabled = selected) }
-            repository.updateAllUrls(updatedUrls)
-            Log.d(TAG, "Set all URLs selected: $selected")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting all URLs selected: $selected", e)
+    fun setAllSelected(selected: Boolean) {
+        val updatedUrls = _allUrls.value.map { it.copy(isEnabled = selected) }
+        _allUrls.value = updatedUrls
+
+        viewModelScope.launch {
+            try {
+                repository.updateAllUrls(updatedUrls)
+                Log.d(TAG, "Set all URLs selected in background: $selected")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error setting all URLs selected: $selected", e)
+            }
         }
     }
 
-    // 在链接选中状态改变时检查和更新分组状态
-    fun onUrlCheckChanged(searchUrl: SearchUrl, isChecked: Boolean) = viewModelScope.launch {
-        // 更新链接的启用状态
-        updateUrl(searchUrl.copy(isEnabled = isChecked))
-
-        // 获取当前分组中所有链接
-        val urlsInGroup = allUrls.value.filter { it.groupId == searchUrl.groupId }
-
-        // 检查分组状态是否需要更新
-        val groupShouldBeChecked = urlsInGroup.isNotEmpty() && urlsInGroup.all {
-            if (it.id == searchUrl.id) isChecked else it.isEnabled
-        }
-
-        // 查找并更新对应的分组
-        val group = allGroups.value.find { it.id == searchUrl.groupId } ?: return@launch
-
-        // 通知UI更新分组状态
-        _groupCheckEvents.postValue(Pair(group, groupShouldBeChecked))
-    }
 
     private val _groupCheckEvents = MutableLiveData<Pair<UrlGroup, Boolean>>()
     val groupCheckEvents: LiveData<Pair<UrlGroup, Boolean>> = _groupCheckEvents

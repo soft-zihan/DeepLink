@@ -113,6 +113,18 @@ class SettingsActivity : AppCompatActivity() {
             setPreferencesFromResource(R.xml.preferences, rootKey)
             searchHistoryManager = SearchHistoryManager(requireContext())
 
+            // 内置浏览器开关
+            val builtInBrowserSwitch = findPreference<SwitchPreferenceCompat>("pref_use_built_in_browser")
+            val appPreferences = com.example.aggregatesearch.utils.AppPreferences(requireContext())
+            builtInBrowserSwitch?.apply {
+                isChecked = appPreferences.getUseBuiltInBrowser()
+                setOnPreferenceChangeListener { _, newValue ->
+                    val enabled = newValue as Boolean
+                    appPreferences.setUseBuiltInBrowser(enabled)
+                    true
+                }
+            }
+
             // 搜索历史开关
             val historySwitch = findPreference<SwitchPreferenceCompat>("pref_history")
             historySwitch?.apply {

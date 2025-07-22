@@ -22,11 +22,26 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!-- 标签栏 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewTabs"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_below="@+id/appBarLayout"
+        android:orientation="horizontal"
+        android:scrollbars="none"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:clipToPadding="false"
+        android:background="?attr/colorSurface"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/search_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/appBarLayout"
+        android:layout_below="@+id/recyclerViewTabs"
         android:orientation="horizontal"
         android:padding="16dp"
         android:gravity="center_vertical">
@@ -36,7 +51,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_checkbox_unchecked"
+            android:src="@drawable/ic_select_all_checkbox"
             android:scaleType="fitCenter"
             android:padding="8dp"/>
 
@@ -90,6 +105,15 @@
         android:clipToPadding="false"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         android:visibility="gone"/>
+
+    <!-- WebView容器 -->
+    <FrameLayout
+        android:id="@+id/webViewContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_below="@+id/recyclerViewPinned"
+        android:layout_alignParentBottom="true"
+        android:visibility="gone" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewUrls"
