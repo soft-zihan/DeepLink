@@ -38,6 +38,9 @@ class SearchViewModel(private val repository: SearchUrlRepository) : ViewModel()
 
     init {
         viewModelScope.launch {
+            // Ensure the database is initialized before loading data
+            repository.initializeDatabaseIfFirstLaunch()
+
             // Load initial data from the repository.
             // After this, the StateFlows in the ViewModel are the single source of truth for the UI.
             // Database updates become "fire and forget" to prevent UI state rebound.

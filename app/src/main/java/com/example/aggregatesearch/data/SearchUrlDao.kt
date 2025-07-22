@@ -67,4 +67,7 @@ interface SearchUrlDao {
     // 插入带有ID的URL(用于恢复备份)
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUrlWithId(url: SearchUrl)
+
+    @Query("SELECT COUNT(*) FROM url_groups")
+    suspend fun getGroupCount(): Int
 }

@@ -101,6 +101,9 @@ class MainActivity : AppCompatActivity() {
 
         UiUtils.applyWallpaper(binding.root, this)
 
+        // 刷新分组UI以应用透明度
+        recyclerViewManager.notifyDataSetChanged()
+
         // 刷新数据
         searchFunctionManager.refreshSearchHistorySuggestions()
         searchFunctionManager.refreshPinnedSearches()

@@ -1,6 +1,7 @@
 package com.example.aggregatesearch
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Color
 import android.util.TypedValue
 import android.view.LayoutInflater
@@ -64,6 +65,7 @@ class GroupedSearchUrlAdapter(
         private var lastClickedIconId: Long = -1
         private var lastClickTime: Long = 0L
 
+        private val groupContainer: View = itemView.findViewById(R.id.groupContainer)
         private val groupHeader: View = itemView.findViewById(R.id.groupHeader)
         private val textViewGroupName: TextView = itemView.findViewById(R.id.textViewGroupName)
         private val clickableGroupArea: View = itemView.findViewById(R.id.clickableGroupArea)
@@ -79,7 +81,7 @@ class GroupedSearchUrlAdapter(
             buttonEditGroup.visibility = if (isEditMode) View.VISIBLE else View.GONE
             buttonAddUrlToGroup.visibility = if (isEditMode) View.VISIBLE else View.GONE
 
-            applyGroupColorToHeader(groupHeader, group.color)
+            applyGroupColorToHeader(groupContainer, group.color)
 
             imageViewExpandCollapse.rotation = if (group.isExpanded) 180f else 0f
             imageViewExpandCollapse.setOnClickListener {
@@ -168,15 +170,13 @@ class GroupedSearchUrlAdapter(
 
         private fun applyGroupColorToHeader(view: View, groupColorHex: String?) {
             val textViewGroupName: TextView = view.findViewById(R.id.textViewGroupName)
+            val alpha = getGroupBackgroundAlpha(view.context)
+
             if (groupColorHex != null && groupColorHex.isNotEmpty()) {
                 try {
                     val color = Color.parseColor(groupColorHex)
-                    view.setBackgroundColor(Color.argb(128, Color.red(color), Color.green(color), Color.blue(color)))
-                    if (isColorDark(color)) {
-                        textViewGroupName.setTextColor(Color.WHITE)
-                    } else {
-                        textViewGroupName.setTextColor(Color.BLACK)
-                    }
+                    view.setBackgroundColor(Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color)))
+                    textViewGroupName.setTextColor(getDefaultTextColor(view.context))
                 } catch (e: IllegalArgumentException) {
                     applyDefaultBackground(view)
                 }
@@ -189,18 +189,26 @@ class GroupedSearchUrlAdapter(
             val textViewGroupName: TextView = view.findViewById(R.id.textViewGroupName)
             val typedValue = TypedValue()
             val fallbackColor = Color.parseColor("#A9A9A9")
+            val alpha = getGroupBackgroundAlpha(view.context)
+
             try {
                 view.context.theme.resolveAttribute(com.google.android.material.R.attr.colorSurfaceVariant, typedValue, true)
                 val themeBackgroundColor = typedValue.data
                 if (isColorTooLight(themeBackgroundColor)) {
-                     view.setBackgroundColor(Color.argb(128, Color.red(fallbackColor), Color.green(fallbackColor), Color.blue(fallbackColor)))
+                    view.setBackgroundColor(Color.argb(alpha, Color.red(fallbackColor), Color.green(fallbackColor), Color.blue(fallbackColor)))
                 } else {
-                     view.setBackgroundColor(Color.argb(128, Color.red(themeBackgroundColor), Color.green(themeBackgroundColor), Color.blue(themeBackgroundColor)))
+                    view.setBackgroundColor(Color.argb(alpha, Color.red(themeBackgroundColor), Color.green(themeBackgroundColor), Color.blue(themeBackgroundColor)))
                 }
             } catch (e: Exception) {
-                 view.setBackgroundColor(Color.argb(128, Color.red(fallbackColor), Color.green(fallbackColor), Color.blue(fallbackColor)))
+                view.setBackgroundColor(Color.argb(alpha, Color.red(fallbackColor), Color.green(fallbackColor), Color.blue(fallbackColor)))
             }
             textViewGroupName.setTextColor(getDefaultTextColor(view.context))
+        }
+
+        private fun getGroupBackgroundAlpha(context: Context): Int {
+            val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(context)
+            val alphaPercent = prefs.getInt("pref_group_background_alpha", 100)
+            return (alphaPercent * 255 / 100).coerceIn(0, 255)
         }
 
         private fun getDefaultTextColor(context: android.content.Context): Int {

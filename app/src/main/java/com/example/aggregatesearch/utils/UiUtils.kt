@@ -167,10 +167,6 @@ object UiUtils {
             context.contentResolver.openInputStream(uri)?.use { input ->
                 val bitmap = android.graphics.BitmapFactory.decodeStream(input)
                 val drawable = BitmapDrawable(context.resources, bitmap)
-                val defaultPrefs = PreferenceManager.getDefaultSharedPreferences(context)
-                val alphaPercent = defaultPrefs.getInt(
-                    if (isDark) "pref_wallpaper_dark_alpha" else "pref_wallpaper_light_alpha", 100)
-                drawable.alpha = (alphaPercent * 255 / 100).coerceIn(0, 255)
                 root.background = drawable
             }
         } catch (e: Exception) {

@@ -131,4 +131,10 @@ class RecyclerViewManager(
             groupedAdapter.notifyDataSetChanged()
         }
     }
+
+    fun notifyDataSetChanged() {
+        if (::groupedAdapter.isInitialized) {
+            groupedAdapter.notifyDataSetChanged()
+        }
+    }
 }

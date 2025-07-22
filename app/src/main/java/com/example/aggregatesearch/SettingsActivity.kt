@@ -16,6 +16,7 @@ import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SwitchPreferenceCompat
+import com.example.aggregatesearch.preferences.WallpaperPreference
 import com.example.aggregatesearch.utils.SearchHistoryManager
 import androidx.fragment.app.viewModels
 import kotlinx.coroutines.launch
@@ -157,8 +158,16 @@ class SettingsActivity : AppCompatActivity() {
             }
 
             // 壁纸（浅色、深色）
-            val lightWallpaperPref = findPreference<Preference>("pref_wallpaper_light")
-            val darkWallpaperPref = findPreference<Preference>("pref_wallpaper_dark")
+            val lightWallpaperPref = findPreference<WallpaperPreference>("pref_wallpaper_light")
+            val darkWallpaperPref = findPreference<WallpaperPreference>("pref_wallpaper_dark")
+
+            lightWallpaperPref?.setOnDeleteClickListener {
+                clearWallpaper(false)
+            }
+
+            darkWallpaperPref?.setOnDeleteClickListener {
+                clearWallpaper(true)
+            }
 
             wallpaperActivityResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 if (result.resultCode == RESULT_OK) { // Changed from Activity.RESULT_OK
@@ -352,24 +361,27 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
-        private fun createBackupData(): JSONObject { // Changed from org.json.JSONObject
-            val rootObject = JSONObject() // Changed from org.json.JSONObject
+        private fun createBackupData(): JSONObject {
+            val rootObject = JSONObject()
 
+            // Backup groups
             val groupsArray = org.json.JSONArray()
             searchViewModel.allGroups.value.forEach { group ->
-                val groupObject = JSONObject().apply { // Changed from org.json.JSONObject
+                val groupObject = JSONObject().apply {
                     put("id", group.id)
                     put("name", group.name)
                     put("isExpanded", group.isExpanded)
                     put("orderIndex", group.orderIndex)
+                    put("color", group.color) // Backup color
                 }
                 groupsArray.put(groupObject)
             }
             rootObject.put("groups", groupsArray)
 
+            // Backup URLs
             val urlsArray = org.json.JSONArray()
             searchViewModel.allUrls.value.forEach { url ->
-                val urlObject = JSONObject().apply { // Changed from org.json.JSONObject
+                val urlObject = JSONObject().apply {
                     put("id", url.id)
                     put("name", url.name)
                     put("urlPattern", url.urlPattern)
@@ -382,12 +394,23 @@ class SettingsActivity : AppCompatActivity() {
             }
             rootObject.put("urls", urlsArray)
 
+            // Backup wallpapers
+            val wallpaperPrefs = requireContext().getSharedPreferences(WALLPAPER_PREFS, Context.MODE_PRIVATE)
+            val lightWallpaper = wallpaperPrefs.getString(PREF_WALLPAPER_LIGHT_URI, null)
+            val darkWallpaper = wallpaperPrefs.getString(PREF_WALLPAPER_DARK_URI, null)
+            val wallpaperObject = JSONObject().apply {
+                put("light", lightWallpaper)
+                put("dark", darkWallpaper)
+            }
+            rootObject.put("wallpapers", wallpaperObject)
+
             return rootObject
         }
 
         private fun restoreFromBackup(jsonString: String) {
-            val rootObject = JSONObject(jsonString) // Changed from org.json.JSONObject
+            val rootObject = JSONObject(jsonString)
 
+            // Restore groups
             val groupsArray = rootObject.getJSONArray("groups")
             val groups = mutableListOf<com.example.aggregatesearch.data.UrlGroup>()
             for (i in 0 until groupsArray.length()) {
@@ -397,11 +420,13 @@ class SettingsActivity : AppCompatActivity() {
                         id = groupObject.getLong("id"),
                         name = groupObject.getString("name"),
                         isExpanded = groupObject.getBoolean("isExpanded"),
-                        orderIndex = groupObject.getInt("orderIndex")
+                        orderIndex = groupObject.getInt("orderIndex"),
+                        color = if (groupObject.has("color")) groupObject.getString("color") else null // Restore color
                     )
                 )
             }
 
+            // Restore URLs
             val urlsArray = rootObject.getJSONArray("urls")
             val urls = mutableListOf<com.example.aggregatesearch.data.SearchUrl>()
             for (i in 0 until urlsArray.length()) {
@@ -420,6 +445,25 @@ class SettingsActivity : AppCompatActivity() {
             }
 
             searchViewModel.restoreFromBackup(groups, urls)
+
+            // Restore wallpapers
+            if (rootObject.has("wallpapers")) {
+                val wallpaperObject = rootObject.getJSONObject("wallpapers")
+                val lightWallpaper = wallpaperObject.optString("light", null)
+                val darkWallpaper = wallpaperObject.optString("dark", null)
+                val wallpaperPrefs = requireContext().getSharedPreferences(WALLPAPER_PREFS, Context.MODE_PRIVATE).edit()
+                if (lightWallpaper != null) {
+                    wallpaperPrefs.putString(PREF_WALLPAPER_LIGHT_URI, lightWallpaper)
+                } else {
+                    wallpaperPrefs.remove(PREF_WALLPAPER_LIGHT_URI)
+                }
+                if (darkWallpaper != null) {
+                    wallpaperPrefs.putString(PREF_WALLPAPER_DARK_URI, darkWallpaper)
+                } else {
+                    wallpaperPrefs.remove(PREF_WALLPAPER_DARK_URI)
+                }
+                wallpaperPrefs.apply()
+            }
         }
 
         private fun checkLatestVersion() {
@@ -479,6 +523,14 @@ class SettingsActivity : AppCompatActivity() {
                 .edit { putString(key, uri.toString()) } // Changed to KTX
             Toast.makeText(requireContext(), "壁纸已设置", Toast.LENGTH_SHORT).show()
             // The wallpaper will be applied when MainActivity resumes or if UiUtils.applyWallpaper is called.
+        }
+
+        private fun clearWallpaper(isDark: Boolean) {
+            val key = if (isDark) PREF_WALLPAPER_DARK_URI else PREF_WALLPAPER_LIGHT_URI
+            requireContext().getSharedPreferences(WALLPAPER_PREFS, Context.MODE_PRIVATE).edit {
+                remove(key)
+            }
+            Toast.makeText(requireContext(), "壁纸已删除", Toast.LENGTH_SHORT).show()
         }
     }
 }

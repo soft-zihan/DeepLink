@@ -59,6 +59,16 @@
             android:entries="@array/toolbar_colors"
             android:entryValues="@array/toolbar_color_values" />
 
+        <SeekBarPreference
+            android:key="pref_group_background_alpha"
+            android:title="分组背景透明度"
+            android:summary="调整分组背景的透明度"
+            android:defaultValue="100"
+            android:min="0"
+            android:max="100"
+            android:icon="@android:drawable/ic_menu_crop"
+            app:iconSpaceReserved="true" />
+
     </PreferenceCategory>
 
     <!-- 壁纸设置组 -->
@@ -66,36 +76,18 @@
         android:title="壁纸设置"
         app:iconSpaceReserved="true">
 
-        <Preference
+        <com.example.aggregatesearch.preferences.WallpaperPreference
             android:key="pref_wallpaper_light"
             android:title="壁纸 (浅色主题)"
             android:summary="选择一张图片作为浅色主题壁纸"
             android:icon="@android:drawable/ic_menu_gallery"
             app:iconSpaceReserved="true" />
 
-        <SeekBarPreference
-            android:key="pref_wallpaper_light_alpha"
-            android:title="壁纸透明度 (浅色)"
-            android:defaultValue="100"
-            android:min="0"
-            android:max="100"
-            android:icon="@android:drawable/ic_menu_crop"
-            app:iconSpaceReserved="true" />
-
-        <Preference
+        <com.example.aggregatesearch.preferences.WallpaperPreference
             android:key="pref_wallpaper_dark"
             android:title="壁纸 (深色主题)"
             android:summary="选择一张图片作为深色主题壁纸"
             android:icon="@android:drawable/ic_menu_gallery"
-            app:iconSpaceReserved="true" />
-
-        <SeekBarPreference
-            android:key="pref_wallpaper_dark_alpha"
-            android:title="壁纸透明度 (深色)"
-            android:defaultValue="100"
-            android:min="0"
-            android:max="100"
-            android:icon="@android:drawable/ic_menu_crop"
             app:iconSpaceReserved="true" />
     </PreferenceCategory>
 
