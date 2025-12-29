@@ -16,10 +16,10 @@ data class BrowserTab(
             )
         }
 
-        fun createWebTab(url: String, title: String = "新标签"): BrowserTab {
+        fun createWebTab(url: String, title: String?): BrowserTab {
             return BrowserTab(
                 id = System.currentTimeMillis().toString(),
-                title = title,
+                title = title ?: "新标签",
                 url = url,
                 isMainTab = false
             )

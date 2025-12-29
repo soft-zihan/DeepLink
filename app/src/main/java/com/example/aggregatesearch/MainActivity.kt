@@ -7,7 +7,11 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.webkit.CookieManager
+import android.webkit.WebChromeClient
 import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -85,6 +89,9 @@ class MainActivity : AppCompatActivity() {
 
             // 观察数据变化
             observeDataChanges()
+
+            // 处理返回手势
+            handleBackPress()
 
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Error in onCreate", e)
@@ -197,7 +204,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initializeBrowser() {
-        browserManager = BrowserManager(this)
+        browserManager = BrowserManager(this, searchViewModel)
 
         // 设置标签适配器
         tabAdapter = TabAdapter(
@@ -234,8 +241,16 @@ class MainActivity : AppCompatActivity() {
                 updateWebViewContainer(it)
                 // 更新标题
                 supportActionBar?.title = if (it.isMainTab) "" else it.title
+                // 更新浏览器控制按钮的可见性
+                binding.browserControls.visibility = if (it.isMainTab) View.GONE else View.VISIBLE
             }
         }
+
+        // 设置浏览器控制按钮的点击事件
+        binding.btnRefresh.setOnClickListener {
+            browserManager.getCurrentWebView()?.reload()
+        }
+
     }
 
     private fun updateTabBarVisibility() {
@@ -290,6 +305,9 @@ class MainActivity : AppCompatActivity() {
         menu.findItem(R.id.menu_settings)?.isVisible = !isInBrowserView
         menu.findItem(R.id.menu_help)?.isVisible = !isInBrowserView
 
+        // 控制清空按钮的可见性
+        menu.findItem(R.id.menu_clear_tabs)?.isVisible = isInBrowserView && browserManager.hasMultipleWebTabs()
+
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -298,11 +316,12 @@ class MainActivity : AppCompatActivity() {
             R.id.menu_browser_back -> {
                 if (browserManager.canGoBack()) {
                     browserManager.goBack()
-                } else {
-                    // 如果WebView无法回退，切换到主标签
-                    val mainTab = browserManager.tabs.value?.firstOrNull { it.isMainTab }
-                    mainTab?.let { browserManager.switchToTab(it) }
                 }
+                // 如果无法回退，则不执行任何操作
+                true
+            }
+            R.id.menu_clear_tabs -> {
+                browserManager.closeNonPrimaryTabs()
                 true
             }
             else -> menuManager.onOptionsItemSelected(item)
@@ -362,8 +381,28 @@ class MainActivity : AppCompatActivity() {
     /**
      * 供外部调用的方法，用于在内置浏览器中打开URL
      */
-    fun openInBuiltInBrowser(url: String) {
-        val newTab = browserManager.addWebTab(url)
+    fun openInBuiltInBrowser(searchUrl: com.example.aggregatesearch.data.SearchUrl) {
+        val newTab = browserManager.addWebTab(searchUrl)
         browserManager.switchToTab(newTab)
+    }
+
+    private fun handleBackPress() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val isInBrowserView = browserManager.hasWebTabs() && browserManager.currentTab.value?.isMainTab == false
+                if (isInBrowserView) {
+                    if (browserManager.canGoBack()) {
+                        browserManager.goBack()
+                    }
+                    // 如果WebView无法回退，则不执行任何操作，从而屏蔽返回手势
+                } else {
+                    // 如果不在浏览器视图中，执行默认的返回操作
+                    if (isEnabled) {
+                        isEnabled = false
+                        onBackPressedDispatcher.onBackPressed()
+                    }
+                }
+            }
+        })
     }
 }

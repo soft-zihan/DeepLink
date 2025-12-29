@@ -28,8 +28,10 @@ object UrlLauncher {
             if (!url.isEnabled && selectedUrls.size > 1) continue
 
             try {
+                val urlToUse = if (url.isUrl2Selected) url.urlPattern2 else url.urlPattern
+
                 // 如果链接为空，尝试直接使用包名启动应用
-                if (url.urlPattern.isEmpty()) {
+                if (urlToUse.isEmpty()) {
                     if (url.packageName.isNotEmpty()) {
                         val launchIntent = context.packageManager.getLaunchIntentForPackage(url.packageName)
                         if (launchIntent != null) {
@@ -45,16 +47,16 @@ object UrlLauncher {
                     continue
                 }
 
-                val formattedUrl = if (url.urlPattern.contains("%s")) {
+                val formattedUrl = if (urlToUse.contains("%s")) {
                     if (searchQuery.isEmpty()) {
                         // 当搜索查询为空时，直接删除%s
-                        url.urlPattern.replace("%s", "")
+                        urlToUse.replace("%s", "")
                     } else {
                         // 有搜索查询时，正常替换
-                        url.urlPattern.replace("%s", Uri.encode(searchQuery))
+                        urlToUse.replace("%s", Uri.encode(searchQuery))
                     }
                 } else {
-                    url.urlPattern
+                    urlToUse
                 }
 
                 try {
@@ -63,7 +65,7 @@ object UrlLauncher {
                     // 检查是否是网页链接且使用内置浏览器
                     if (useBuiltInBrowser && isWebUrl(formattedUrl) && !isAppIntentUrl(formattedUrl)) {
                         // 使用内置浏览器打开
-                        openInBuiltInBrowser(context, formattedUrl)
+                        openInBuiltInBrowser(context, url.copy(urlPattern = formattedUrl))
                         launchCount++
                     } else {
                         // 使用默认浏览器或应用打开
@@ -132,12 +134,12 @@ object UrlLauncher {
     }
 
     // 在内置浏览器中打开URL
-    private fun openInBuiltInBrowser(context: Context, url: String) {
+    private fun openInBuiltInBrowser(context: Context, searchUrl: SearchUrl) {
         if (context is MainActivity) {
-            context.openInBuiltInBrowser(url)
+            context.openInBuiltInBrowser(searchUrl)
         } else {
             // 如果context不是MainActivity，使用默认浏览器打开
-            val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+            val intent = Intent(Intent.ACTION_VIEW, searchUrl.urlPattern.toUri())
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
         }

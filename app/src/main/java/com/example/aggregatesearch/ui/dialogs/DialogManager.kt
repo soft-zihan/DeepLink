@@ -103,6 +103,10 @@ class DialogManager(
             Toast.makeText(context, "已取消应用绑定", Toast.LENGTH_SHORT).show()
         }
 
+        dialogBinding.cookieInputLayout.setEndIconOnClickListener {
+            dialogBinding.editTextCookie.setText("")
+        }
+
         val dialog = AlertDialog.Builder(context)
             .setTitle("添加搜索链接")
             .setView(dialogBinding.root)
@@ -115,15 +119,21 @@ class DialogManager(
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val name = dialogBinding.editTextUrlName.text.toString().trim()
             val pattern = dialogBinding.editTextUrlPattern.text.toString().trim()
+            val pattern2 = dialogBinding.editTextUrlPattern2.text.toString().trim()
+            val isUrl2Selected = dialogBinding.radioUrl2.isChecked
             val selectedGroupPosition = dialogBinding.spinnerGroup.selectedItemPosition
             val selectedGroup = currentGroups[selectedGroupPosition]
+            val userAgent = if (dialogBinding.radioDesktop.isChecked) "desktop" else "mobile"
 
             if (name.isNotEmpty()) {
                 val searchUrl = SearchUrl(
                     name = name,
                     urlPattern = pattern,
+                    urlPattern2 = pattern2,
+                    isUrl2Selected = isUrl2Selected,
                     groupId = selectedGroup.id,
-                    packageName = selectedPackageName
+                    packageName = selectedPackageName,
+                    userAgent = userAgent
                 )
                 searchViewModel.insert(searchUrl)
                 onExitEditMode() // 添加后退出编辑模式
@@ -149,6 +159,21 @@ class DialogManager(
         // 预填充现有值
         dialogBinding.editTextUrlName.setText(searchUrl.name)
         dialogBinding.editTextUrlPattern.setText(searchUrl.urlPattern)
+        dialogBinding.editTextUrlPattern2.setText(searchUrl.urlPattern2)
+        dialogBinding.editTextCookie.setText(searchUrl.cookie) // 只加载手动Cookie
+
+        if (searchUrl.isUrl2Selected) {
+            dialogBinding.radioUrl2.isChecked = true
+        } else {
+            dialogBinding.radioUrl1.isChecked = true
+        }
+
+        // 设置UA
+        if (searchUrl.userAgent == "desktop") {
+            dialogBinding.radioDesktop.isChecked = true
+        } else {
+            dialogBinding.radioMobile.isChecked = true
+        }
 
         // 设置图标相关
         setupIconSettings(dialogBinding, searchUrl)
@@ -162,8 +187,13 @@ class DialogManager(
         // 测试链接按钮
         dialogBinding.btnTestUrl.setOnClickListener {
             val name = dialogBinding.editTextUrlName.text.toString().trim().ifEmpty { "测试" }
-            val pattern = dialogBinding.editTextUrlPattern.text.toString().trim()
-            val tempUrl = searchUrl.copy(name = name, urlPattern = pattern, packageName = selectedPackageName)
+            val pattern = if (dialogBinding.radioUrl1.isChecked) {
+                dialogBinding.editTextUrlPattern.text.toString().trim()
+            } else {
+                dialogBinding.editTextUrlPattern2.text.toString().trim()
+            }
+            val userAgent = if (dialogBinding.radioDesktop.isChecked) "desktop" else "mobile"
+            val tempUrl = searchUrl.copy(name = name, urlPattern = pattern, packageName = selectedPackageName, userAgent = userAgent)
             UrlLauncher.launchSearchUrls(context, getCurrentSearchQuery(), listOf(tempUrl))
         }
 
@@ -177,8 +207,14 @@ class DialogManager(
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val name = dialogBinding.editTextUrlName.text.toString().trim()
             val pattern = dialogBinding.editTextUrlPattern.text.toString().trim()
+            val pattern2 = dialogBinding.editTextUrlPattern2.text.toString().trim()
+            val isUrl2Selected = dialogBinding.radioUrl2.isChecked
             val useTextIcon = dialogBinding.radioButtonTextIcon.isChecked
             var iconText = dialogBinding.editTextIconText.text.toString().trim()
+
+            dialogBinding.cookieInputLayout.setEndIconOnClickListener {
+                dialogBinding.editTextCookie.setText("")
+            }
 
             if (useTextIcon && iconText.isEmpty()) {
                 iconText = name.take(1)
@@ -187,13 +223,18 @@ class DialogManager(
             val bgColor = (dialogBinding.viewIconBackgroundColor.background as? ColorDrawable)?.color ?: searchUrl.iconBackgroundColor
 
             if (name.isNotEmpty()) {
+                val userAgent = if (dialogBinding.radioDesktop.isChecked) "desktop" else "mobile"
                 val updatedUrl = searchUrl.copy(
                     name = name,
                     urlPattern = pattern,
+                    urlPattern2 = pattern2,
+                    isUrl2Selected = isUrl2Selected,
                     packageName = selectedPackageName,
                     useTextIcon = useTextIcon,
                     iconText = iconText,
-                    iconBackgroundColor = bgColor
+                    iconBackgroundColor = bgColor,
+                    userAgent = userAgent,
+                    cookie = dialogBinding.editTextCookie.text.toString().trim() // 只保存手动Cookie
                 )
 
                 searchViewModel.updateUrl(updatedUrl)

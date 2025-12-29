@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
@@ -18,20 +19,56 @@
             android:inputType="text" />
     </com.google.android.material.textfield.TextInputLayout>
 
-    <com.google.android.material.textfield.TextInputLayout
+    <RadioGroup
+        android:id="@+id/radioGroupUrlSelection"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:layout_marginBottom="16dp">
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/editTextUrlPattern"
+        <RadioButton
+            android:id="@+id/radioUrl1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="链接 1 (默认)"
+            android:checked="true"/>
+
+        <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/url_pattern"
-            android:inputType="textUri|textMultiLine"
-            android:minLines="3"
-            android:gravity="top|start" />
-    </com.google.android.material.textfield.TextInputLayout>
+            android:layout_marginBottom="8dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editTextUrlPattern"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/url_pattern"
+                android:inputType="textUri|textMultiLine"
+                android:minLines="3"
+                android:gravity="top|start" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <RadioButton
+            android:id="@+id/radioUrl2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="链接 2"/>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editTextUrlPattern2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="链接模式 2 (可选)"
+                android:inputType="textUri|textMultiLine"
+                android:minLines="3"
+                android:gravity="top|start" />
+        </com.google.android.material.textfield.TextInputLayout>
+    </RadioGroup>
 
     <TextView
         android:layout_width="wrap_content"
@@ -92,6 +129,34 @@
         android:visibility="gone"/>
 
     <!-- 添加取消绑定按钮 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="浏览器UA"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp"/>
+
+    <RadioGroup
+        android:id="@+id/radioGroupUserAgent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <RadioButton
+            android:id="@+id/radioMobile"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="手机"
+            android:checked="true"/>
+
+        <RadioButton
+            android:id="@+id/radioDesktop"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="电脑"/>
+    </RadioGroup>
+
     <Button
         android:id="@+id/btnCancelAppBinding"
         android:layout_width="match_parent"
@@ -100,5 +165,23 @@
         style="@style/Widget.MaterialComponents.Button.TextButton"
         android:textColor="?attr/colorPrimary"
         android:layout_marginBottom="8dp"/>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/cookieInputLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:endIconMode="clear_text"
+        app:endIconContentDescription="Clear text">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editTextCookie"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Cookie"
+            android:inputType="textMultiLine"
+            android:minLines="2"
+            android:gravity="top|start" />
+    </com.google.android.material.textfield.TextInputLayout>
 
 </LinearLayout>

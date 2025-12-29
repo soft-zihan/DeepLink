@@ -79,6 +79,26 @@ class SearchViewModel(private val repository: SearchUrlRepository) : ViewModel()
         }
     }
 
+    fun updateAutoCookieForUrl(urlId: Long, autoCookie: String) {
+        _allUrls.update { currentUrls ->
+            currentUrls.map {
+                if (it.id == urlId) {
+                    it.copy(autoCookie = autoCookie)
+                } else {
+                    it
+                }
+            }
+        }
+        viewModelScope.launch {
+            try {
+                repository.updateAutoCookie(urlId, autoCookie)
+                Log.d(TAG, "Updated auto cookie for URL ID: $urlId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating auto cookie for URL ID: $urlId", e)
+            }
+        }
+    }
+
     fun updateUrlStateInBackground(searchUrl: SearchUrl) {
         // Optimistic update to ensure StateFlow is the source of truth.
         _allUrls.update { currentUrls ->
@@ -92,6 +112,12 @@ class SearchViewModel(private val repository: SearchUrlRepository) : ViewModel()
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating URL state in background: ${searchUrl.name}", e)
             }
+        }
+    }
+
+    fun updateCookieForUrl(id: Long, cookies: String) {
+        viewModelScope.launch {
+            repository.updateCookie(id, cookies)
         }
     }
 
