@@ -2,6 +2,35 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <!-- DeepSeek 设置组 -->
+    <PreferenceCategory
+        android:title="DeepSeek AI"
+        app:iconSpaceReserved="true">
+
+        <SwitchPreferenceCompat
+            android:key="pref_deepseek_enabled"
+            android:title="启用 DeepSeek"
+            android:summary="在搜索框下方显示 DeepSeek AI 对话"
+            android:defaultValue="true"
+            android:icon="@android:drawable/ic_dialog_info"
+            app:iconSpaceReserved="true" />
+
+        <Preference
+            android:key="pref_deepseek_login"
+            android:title="登录 DeepSeek"
+            android:summary="展开 DeepSeek 区域并进行登录"
+            android:icon="@android:drawable/ic_lock_lock"
+            app:iconSpaceReserved="true" />
+
+        <Preference
+            android:key="pref_deepseek_clear_data"
+            android:title="清除 DeepSeek 数据"
+            android:summary="清除登录状态和缓存数据"
+            android:icon="@android:drawable/ic_menu_delete"
+            app:iconSpaceReserved="true" />
+
+    </PreferenceCategory>
+
     <!-- 基本功能设置组 -->
     <PreferenceCategory
         android:title="基本功能"

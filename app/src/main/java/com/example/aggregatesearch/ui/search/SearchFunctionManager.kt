@@ -112,6 +112,11 @@ class SearchFunctionManager(
             } else {
                 Toast.makeText(context, "请先选择至少一个搜索引擎", Toast.LENGTH_SHORT).show()
             }
+
+            // 同时向 DeepSeek 发送查询
+            if (context is com.example.aggregatesearch.MainActivity) {
+                (context as com.example.aggregatesearch.MainActivity).sendQueryToDeepSeek(query)
+            }
         } else {
             Toast.makeText(context, "请输入搜索内容", Toast.LENGTH_SHORT).show()
         }

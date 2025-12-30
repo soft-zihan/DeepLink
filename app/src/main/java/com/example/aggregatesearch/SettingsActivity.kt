@@ -114,6 +114,9 @@ class SettingsActivity : AppCompatActivity() {
             setPreferencesFromResource(R.xml.preferences, rootKey)
             searchHistoryManager = SearchHistoryManager(requireContext())
 
+            // DeepSeek 设置
+            setupDeepSeekPreferences()
+
             // 内置浏览器开关
             val builtInBrowserSwitch = findPreference<SwitchPreferenceCompat>("pref_use_built_in_browser")
             val appPreferences = com.example.aggregatesearch.utils.AppPreferences(requireContext())
@@ -531,6 +534,67 @@ class SettingsActivity : AppCompatActivity() {
                 remove(key)
             }
             Toast.makeText(requireContext(), "壁纸已删除", Toast.LENGTH_SHORT).show()
+        }
+
+        /**
+         * 设置 DeepSeek 相关的偏好设置
+         */
+        private fun setupDeepSeekPreferences() {
+            val deepSeekPrefs = requireContext().getSharedPreferences("deepseek_prefs", Context.MODE_PRIVATE)
+            
+            // DeepSeek 启用开关
+            val deepSeekEnabledSwitch = findPreference<SwitchPreferenceCompat>("pref_deepseek_enabled")
+            deepSeekEnabledSwitch?.apply {
+                isChecked = deepSeekPrefs.getBoolean("deepseek_enabled", true)
+                setOnPreferenceChangeListener { _, newValue ->
+                    val enabled = newValue as Boolean
+                    deepSeekPrefs.edit { putBoolean("deepseek_enabled", enabled) }
+                    Toast.makeText(requireContext(), 
+                        if (enabled) "DeepSeek 已启用，返回主界面后生效" else "DeepSeek 已禁用", 
+                        Toast.LENGTH_SHORT).show()
+                    true
+                }
+            }
+            
+            // 登录 DeepSeek
+            findPreference<Preference>("pref_deepseek_login")?.setOnPreferenceClickListener {
+                // 启用 DeepSeek 并返回主界面让用户登录
+                deepSeekPrefs.edit { 
+                    putBoolean("deepseek_enabled", true)
+                    putBoolean("deepseek_expanded", true) // 确保展开
+                }
+                deepSeekEnabledSwitch?.isChecked = true
+                Toast.makeText(requireContext(), "请返回主界面在 DeepSeek 区域登录", Toast.LENGTH_LONG).show()
+                // 返回主界面
+                activity?.finish()
+                true
+            }
+            
+            // 清除 DeepSeek 数据
+            findPreference<Preference>("pref_deepseek_clear_data")?.setOnPreferenceClickListener {
+                AlertDialog.Builder(requireContext())
+                    .setTitle("清除 DeepSeek 数据")
+                    .setMessage("这将清除 DeepSeek 的登录状态和所有缓存数据，确定继续吗？")
+                    .setPositiveButton("确定") { _, _ ->
+                        // 清除 Cookie
+                        val cookieManager = android.webkit.CookieManager.getInstance()
+                        cookieManager.removeAllCookies(null)
+                        cookieManager.flush()
+                        
+                        // 清除 WebView 缓存
+                        android.webkit.WebStorage.getInstance().deleteAllData()
+                        
+                        // 清除偏好设置中的 Cookie
+                        deepSeekPrefs.edit { 
+                            remove("deepseek_cookie")
+                        }
+                        
+                        Toast.makeText(requireContext(), "DeepSeek 数据已清除", Toast.LENGTH_SHORT).show()
+                    }
+                    .setNegativeButton("取消", null)
+                    .show()
+                true
+            }
         }
     }
 }

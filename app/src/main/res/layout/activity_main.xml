@@ -127,23 +127,53 @@
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         android:visibility="gone"/>
 
-    <!-- WebView容器 -->
+    <!-- DeepSeek 区域 -->
     <FrameLayout
-        android:id="@+id/webViewContainer"
+        android:id="@+id/contentContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_below="@+id/recyclerViewPinned"
-        android:layout_alignParentBottom="true"
-        android:visibility="gone" />
+        android:layout_alignParentBottom="true">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerViewUrls"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_below="@+id/recyclerViewPinned"
-        android:layout_alignParentBottom="true"
-        android:padding="8dp"
-        android:clipToPadding="false"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+        <!-- 可滚动内容：DeepSeek + 搜索平台列表（两者一起随滚动上推） -->
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/mainScrollView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <include
+                    android:id="@+id/deepseek_include"
+                    layout="@layout/layout_deepseek"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerViewUrls"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:clipToPadding="false"
+                    android:nestedScrollingEnabled="false"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+            </LinearLayout>
+
+        </androidx.core.widget.NestedScrollView>
+
+        <!-- 内置浏览器容器（显示浏览器时覆盖滚动内容） -->
+        <FrameLayout
+            android:id="@+id/webViewContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+    </FrameLayout>
 
 </RelativeLayout>

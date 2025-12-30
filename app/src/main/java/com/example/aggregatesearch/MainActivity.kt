@@ -11,6 +11,11 @@ import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -22,6 +27,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.aggregatesearch.browser.BrowserManager
 import com.example.aggregatesearch.browser.TabAdapter
 import com.example.aggregatesearch.databinding.ActivityMainBinding
+import com.example.aggregatesearch.deepseek.DeepSeekManager
 import com.example.aggregatesearch.ui.appselection.AppSelectionManager
 import com.example.aggregatesearch.ui.dialogs.DialogManager
 import com.example.aggregatesearch.ui.menu.MenuManager
@@ -54,6 +60,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var browserManager: BrowserManager
     private lateinit var tabAdapter: TabAdapter
 
+    // DeepSeek 管理器
+    private lateinit var deepSeekManager: DeepSeekManager
+
     // 基础工具类
     private lateinit var searchHistoryManager: SearchHistoryManager
     private lateinit var pinnedSearchManager: PinnedSearchManager
@@ -83,6 +92,9 @@ class MainActivity : AppCompatActivity() {
 
             // 初始化内置浏览器
             initializeBrowser()
+
+            // 初始化 DeepSeek
+            initializeDeepSeek()
 
             // 设置各个功能模块
             setupFunctionModules()
@@ -114,6 +126,19 @@ class MainActivity : AppCompatActivity() {
         // 刷新数据
         searchFunctionManager.refreshSearchHistorySuggestions()
         searchFunctionManager.refreshPinnedSearches()
+
+        // 恢复 DeepSeek WebView
+        if (::deepSeekManager.isInitialized) {
+            deepSeekManager.onResume()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // 暂停 DeepSeek WebView
+        if (::deepSeekManager.isInitialized) {
+            deepSeekManager.onPause()
+        }
     }
 
     private fun initializeUtilities() {
@@ -251,6 +276,60 @@ class MainActivity : AppCompatActivity() {
             browserManager.getCurrentWebView()?.reload()
         }
 
+    }
+
+    private fun initializeDeepSeek() {
+        // 获取 DeepSeek 布局中的各个视图
+        // 注意：<include> 的 android:id 会覆盖被 include 的根布局 id，
+        // 所以这里应当把 deepseek_include 当作根容器使用，而不是再去找 deepseek_container。
+        val deepseekRoot = binding.root.findViewById<LinearLayout?>(R.id.deepseek_include)
+        if (deepseekRoot == null) {
+            android.util.Log.e("MainActivity", "DeepSeek include root not found (R.id.deepseek_include)")
+            return
+        }
+
+        val deepseekHeader = deepseekRoot.findViewById<LinearLayout>(R.id.deepseek_header)
+        val deepseekTitle = deepseekRoot.findViewById<TextView>(R.id.deepseek_title)
+        val deepseekExpandIcon = deepseekRoot.findViewById<ImageView>(R.id.deepseek_expand_icon)
+        val deepseekWebViewContainer = deepseekRoot.findViewById<FrameLayout>(R.id.deepseek_webview_container)
+        val deepseekProgress = deepseekRoot.findViewById<ProgressBar>(R.id.deepseek_loading_progress)
+        val deepseekStatus = deepseekRoot.findViewById<TextView>(R.id.deepseek_status)
+
+        // 创建 DeepSeek 管理器
+        deepSeekManager = DeepSeekManager(
+            context = this,
+            container = deepseekRoot,
+            webViewContainer = deepseekWebViewContainer,
+            headerView = deepseekHeader,
+            titleText = deepseekTitle,
+            expandIcon = deepseekExpandIcon,
+            progressBar = deepseekProgress,
+            statusText = deepseekStatus
+        )
+
+        // 根据启用状态显示/隐藏 DeepSeek 区域
+        if (deepSeekManager.isEnabled()) {
+            deepseekRoot.visibility = View.VISIBLE
+            deepSeekManager.initialize()
+        } else {
+            deepseekRoot.visibility = View.GONE
+        }
+    }
+
+    /**
+     * 向 DeepSeek 发送搜索查询
+     */
+    fun sendQueryToDeepSeek(query: String) {
+        if (::deepSeekManager.isInitialized && deepSeekManager.isEnabled()) {
+            deepSeekManager.sendQuery(query)
+        }
+    }
+
+    /**
+     * 获取 DeepSeek 管理器（供设置界面使用）
+     */
+    fun getDeepSeekManager(): DeepSeekManager? {
+        return if (::deepSeekManager.isInitialized) deepSeekManager else null
     }
 
     private fun updateTabBarVisibility() {
